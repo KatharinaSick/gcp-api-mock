@@ -52,6 +52,11 @@ func generateEtag() string {
 	return base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("%d", time.Now().UnixNano())))
 }
 
+// GenerateEtag is the exported version of generateEtag for use by services
+func GenerateEtag() string {
+	return generateEtag()
+}
+
 // validBucketNameChars matches lowercase letters, numbers, hyphens, underscores, and periods
 var validBucketNameChars = regexp.MustCompile(`^[a-z0-9\-_.]+$`)
 
