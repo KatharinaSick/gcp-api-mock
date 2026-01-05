@@ -44,6 +44,9 @@ func main() {
 	bucketHandler := api.NewBucketHandler(bucketService)
 	bucketHandler.RegisterRoutes(router)
 
+	objectHandler := api.NewObjectHandler(objectService)
+	objectHandler.RegisterRoutes(router)
+
 	// Register health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
