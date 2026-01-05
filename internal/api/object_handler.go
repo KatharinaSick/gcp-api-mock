@@ -51,9 +51,7 @@ func (h *ObjectHandler) ListObjects(w http.ResponseWriter, r *http.Request) {
 		Items: objects,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	WriteGCPJSON(w, http.StatusOK, response)
 }
 
 // UploadObject handles POST /upload/storage/v1/b/{bucket}/o - Upload object (multipart or simple)
@@ -101,9 +99,7 @@ func (h *ObjectHandler) UploadObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(object)
+	WriteGCPJSON(w, http.StatusOK, object)
 }
 
 // handleSimpleUpload handles a simple (non-multipart) upload
@@ -210,9 +206,7 @@ func (h *ObjectHandler) GetObject(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Return object metadata
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(object)
+	WriteGCPJSON(w, http.StatusOK, object)
 }
 
 // downloadObjectContent writes the object content as the response
@@ -253,7 +247,7 @@ func (h *ObjectHandler) DeleteObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	WriteGCPNoContent(w)
 }
 
 // RegisterRoutes registers all object routes on the given router

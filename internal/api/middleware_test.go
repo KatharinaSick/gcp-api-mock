@@ -223,7 +223,7 @@ func TestWriteGCPError_FormatsCorrectly(t *testing.T) {
 	WriteGCPError(rec, http.StatusNotFound, "The specified bucket does not exist.", "notFound")
 
 	assert.Equal(t, http.StatusNotFound, rec.Code)
-	assert.Equal(t, "application/json", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
 
 	var gcpErr GCPError
 	err := json.NewDecoder(rec.Body).Decode(&gcpErr)
@@ -438,4 +438,65 @@ func TestMiddleware_ChainingWithOptions(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rec.Code)
 	assert.False(t, handlerCalled)
 	assert.Equal(t, "*", rec.Header().Get("Access-Control-Allow-Origin"))
+}
+
+// Tests for WriteGCPJSON
+
+func TestWriteGCPJSON_FormatsCorrectly(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	data := map[string]interface{}{
+		"kind":  "storage#bucket",
+		"name":  "test-bucket",
+		"count": 42,
+	}
+
+	WriteGCPJSON(rec, http.StatusOK, data)
+
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "application/json; charset=UTF-8", rec.Header().Get("Content-Type"))
+	assert.Equal(t, "no-cache, no-store, max-age=0, must-revalidate", rec.Header().Get("Cache-Control"))
+	assert.Equal(t, "Origin, X-Origin", rec.Header().Get("Vary"))
+	assert.NotEmpty(t, rec.Header().Get("X-GUploader-UploadID"))
+
+	var result map[string]interface{}
+	err := json.NewDecoder(rec.Body).Decode(&result)
+	require.NoError(t, err)
+
+	assert.Equal(t, "storage#bucket", result["kind"])
+	assert.Equal(t, "test-bucket", result["name"])
+	assert.Equal(t, float64(42), result["count"])
+}
+
+func TestWriteGCPJSON_DifferentStatusCodes(t *testing.T) {
+	tests := []struct {
+		name string
+		code int
+	}{
+		{"OK", http.StatusOK},
+		{"Created", http.StatusCreated},
+		{"Accepted", http.StatusAccepted},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			data := map[string]string{"status": "ok"}
+
+			WriteGCPJSON(rec, tt.code, data)
+
+			assert.Equal(t, tt.code, rec.Code)
+		})
+	}
+}
+
+// Tests for WriteGCPNoContent
+
+func TestWriteGCPNoContent_ReturnsNoContent(t *testing.T) {
+	rec := httptest.NewRecorder()
+
+	WriteGCPNoContent(rec)
+
+	assert.Equal(t, http.StatusNoContent, rec.Code)
+	assert.Empty(t, rec.Body.String())
 }

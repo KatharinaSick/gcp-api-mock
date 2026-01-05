@@ -50,9 +50,7 @@ func (h *BucketHandler) ListBuckets(w http.ResponseWriter, r *http.Request) {
 		Items: buckets,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	WriteGCPJSON(w, http.StatusOK, response)
 }
 
 // CreateBucket handles POST /storage/v1/b - Create a new bucket
@@ -91,9 +89,7 @@ func (h *BucketHandler) CreateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bucket)
+	WriteGCPJSON(w, http.StatusOK, bucket)
 }
 
 // GetBucket handles GET /storage/v1/b/{bucket} - Get bucket metadata
@@ -116,9 +112,7 @@ func (h *BucketHandler) GetBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bucket)
+	WriteGCPJSON(w, http.StatusOK, bucket)
 }
 
 // DeleteBucket handles DELETE /storage/v1/b/{bucket} - Delete a bucket
@@ -145,7 +139,7 @@ func (h *BucketHandler) DeleteBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.WriteHeader(http.StatusNoContent)
+	WriteGCPNoContent(w)
 }
 
 // UpdateBucket handles PATCH /storage/v1/b/{bucket} - Update bucket metadata
@@ -175,9 +169,7 @@ func (h *BucketHandler) UpdateBucket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(bucket)
+	WriteGCPJSON(w, http.StatusOK, bucket)
 }
 
 // RegisterRoutes registers all bucket routes on the given router
