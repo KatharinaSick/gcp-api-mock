@@ -80,7 +80,9 @@ func TestDashboardHandler_CreateBucket_JSON(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var data DashboardData
-	json.NewDecoder(w.Body).Decode(&data)
+	if err := json.NewDecoder(w.Body).Decode(&data); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if len(data.Buckets) != 1 {
 		t.Errorf("Expected 1 bucket, got %d", len(data.Buckets))
@@ -110,7 +112,7 @@ func TestDashboardHandler_DeleteBucket(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create a bucket first
-	handler.bucketService.Create("to-delete", "test-project", "US", "STANDARD")
+	_, _ = handler.bucketService.Create("to-delete", "test-project", "US", "STANDARD")
 
 	// Delete the bucket
 	req := httptest.NewRequest("DELETE", "/api/dashboard/buckets/to-delete", nil)
@@ -131,7 +133,9 @@ func TestDashboardHandler_DeleteBucket(t *testing.T) {
 	router.ServeHTTP(w, req)
 
 	var data DashboardData
-	json.NewDecoder(w.Body).Decode(&data)
+	if err := json.NewDecoder(w.Body).Decode(&data); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if len(data.Buckets) != 0 {
 		t.Errorf("Expected 0 buckets after delete, got %d", len(data.Buckets))
@@ -157,7 +161,7 @@ func TestDashboardHandler_UpdateBucket(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create a bucket first
-	handler.bucketService.Create("update-test", "test-project", "US", "STANDARD")
+	_, _ = handler.bucketService.Create("update-test", "test-project", "US", "STANDARD")
 
 	// Update the bucket
 	body := `{"storageClass": "NEARLINE"}`
@@ -184,14 +188,14 @@ func TestDashboardHandler_UploadObject(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create a bucket first
-	handler.bucketService.Create("upload-test", "test-project", "US", "STANDARD")
+	_, _ = handler.bucketService.Create("upload-test", "test-project", "US", "STANDARD")
 
 	// Create multipart form
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("file", "test.txt")
-	io.WriteString(part, "Hello, World!")
-	writer.Close()
+	_, _ = io.WriteString(part, "Hello, World!")
+	_ = writer.Close()
 
 	req := httptest.NewRequest("POST", "/api/dashboard/buckets/upload-test/objects", &buf)
 	req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -219,8 +223,8 @@ func TestDashboardHandler_DownloadObject(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create a bucket and object
-	handler.bucketService.Create("download-test", "test-project", "US", "STANDARD")
-	handler.objectService.Create("download-test", "myfile.txt", []byte("Hello!"), "text/plain")
+	_, _ = handler.bucketService.Create("download-test", "test-project", "US", "STANDARD")
+	_, _ = handler.objectService.Create("download-test", "myfile.txt", []byte("Hello!"), "text/plain")
 
 	req := httptest.NewRequest("GET", "/api/dashboard/buckets/download-test/objects/myfile.txt", nil)
 	ctx := SetPathParams(req.Context(), &PathParams{Bucket: "download-test", Object: "myfile.txt"})
@@ -246,8 +250,8 @@ func TestDashboardHandler_DeleteObject(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create a bucket and object
-	handler.bucketService.Create("delete-obj-test", "test-project", "US", "STANDARD")
-	handler.objectService.Create("delete-obj-test", "to-delete.txt", []byte("Delete me"), "text/plain")
+	_, _ = handler.bucketService.Create("delete-obj-test", "test-project", "US", "STANDARD")
+	_, _ = handler.objectService.Create("delete-obj-test", "to-delete.txt", []byte("Delete me"), "text/plain")
 
 	req := httptest.NewRequest("DELETE", "/api/dashboard/buckets/delete-obj-test/objects/to-delete.txt", nil)
 	ctx := SetPathParams(req.Context(), &PathParams{Bucket: "delete-obj-test", Object: "to-delete.txt"})
@@ -271,10 +275,10 @@ func TestDashboardHandler_GetStats(t *testing.T) {
 	handler, router := setupTestDashboard()
 
 	// Create some data
-	handler.bucketService.Create("stats-test-1", "test-project", "US", "STANDARD")
-	handler.bucketService.Create("stats-test-2", "test-project", "US", "STANDARD")
-	handler.objectService.Create("stats-test-1", "file1.txt", []byte("Hello"), "text/plain")
-	handler.objectService.Create("stats-test-1", "file2.txt", []byte("World!"), "text/plain")
+	_, _ = handler.bucketService.Create("stats-test-1", "test-project", "US", "STANDARD")
+	_, _ = handler.bucketService.Create("stats-test-2", "test-project", "US", "STANDARD")
+	_, _ = handler.objectService.Create("stats-test-1", "file1.txt", []byte("Hello"), "text/plain")
+	_, _ = handler.objectService.Create("stats-test-1", "file2.txt", []byte("World!"), "text/plain")
 
 	req := httptest.NewRequest("GET", "/api/dashboard/stats", nil)
 	w := httptest.NewRecorder()
@@ -286,7 +290,9 @@ func TestDashboardHandler_GetStats(t *testing.T) {
 	}
 
 	var stats DashboardStats
-	json.NewDecoder(w.Body).Decode(&stats)
+	if err := json.NewDecoder(w.Body).Decode(&stats); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if stats.BucketCount != 2 {
 		t.Errorf("Expected 2 buckets, got %d", stats.BucketCount)
@@ -316,7 +322,9 @@ func TestDashboardHandler_GetRequests(t *testing.T) {
 	}
 
 	var requests []RequestLogEntry
-	json.NewDecoder(w.Body).Decode(&requests)
+	if err := json.NewDecoder(w.Body).Decode(&requests); err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
 
 	if len(requests) != 2 {
 		t.Errorf("Expected 2 requests, got %d", len(requests))

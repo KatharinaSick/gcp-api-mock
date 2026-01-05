@@ -146,21 +146,27 @@ func (h *DashboardHandler) ServeDashboard(w http.ResponseWriter, r *http.Request
 func (h *DashboardHandler) GetResources(w http.ResponseWriter, r *http.Request) {
 	data := h.buildDashboardData()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // GetRequests returns the request log as JSON
 func (h *DashboardHandler) GetRequests(w http.ResponseWriter, r *http.Request) {
 	requests := h.requestLogger.GetAll()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(requests)
+	if err := json.NewEncoder(w).Encode(requests); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // GetStats returns dashboard statistics as JSON
 func (h *DashboardHandler) GetStats(w http.ResponseWriter, r *http.Request) {
 	stats := h.calculateStats()
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
+	if err := json.NewEncoder(w).Encode(stats); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // GetBucketsPartial returns the buckets list as an HTML partial
@@ -247,7 +253,9 @@ func (h *DashboardHandler) CreateBucket(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(bucket)
+	if err := json.NewEncoder(w).Encode(bucket); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // UpdateBucket updates a bucket's metadata
@@ -301,7 +309,9 @@ func (h *DashboardHandler) UpdateBucket(w http.ResponseWriter, r *http.Request) 
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(bucket)
+	if err := json.NewEncoder(w).Encode(bucket); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // DeleteBucket deletes a bucket
@@ -354,7 +364,7 @@ func (h *DashboardHandler) UploadObject(w http.ResponseWriter, r *http.Request) 
 		h.sendError(w, http.StatusBadRequest, "No file provided")
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	content, err := io.ReadAll(file)
 	if err != nil {
@@ -386,7 +396,9 @@ func (h *DashboardHandler) UploadObject(w http.ResponseWriter, r *http.Request) 
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(obj)
+	if err := json.NewEncoder(w).Encode(obj); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+	}
 }
 
 // DownloadObject downloads an object from a bucket
@@ -414,7 +426,9 @@ func (h *DashboardHandler) DownloadObject(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", obj.ContentType)
 	w.Header().Set("Content-Disposition", "attachment; filename=\""+obj.Name+"\"")
 	w.Header().Set("Content-Length", obj.Size)
-	w.Write(obj.Content)
+	if _, err := w.Write(obj.Content); err != nil {
+		http.Error(w, "Error writing response", http.StatusInternalServerError)
+	}
 }
 
 // DeleteObject deletes an object from a bucket
@@ -528,7 +542,7 @@ func (h *DashboardHandler) calculateStats() DashboardStats {
 func (h *DashboardHandler) sendError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]string{"error": message})
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
 
 // formatBytes formats bytes into human-readable string
