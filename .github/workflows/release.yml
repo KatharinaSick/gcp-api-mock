@@ -1,4 +1,4 @@
-name: Release
+name: Release to GHCR
 
 on:
   push:
@@ -19,20 +19,23 @@ jobs:
 
       - name: Get next version
         id: version
-        uses: ietf-tools/semver-action@v1
+        uses: paulhatch/semantic-version@v5.4.0
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
+          tag_prefix: "v"
+          major_pattern: "(BREAKING CHANGE:|feat!:)"
+          minor_pattern: "feat:"
+          version_format: "${major}.${minor}.${patch}"
+          bump_each_commit: false
 
-      - name: Check if release needed
+      - name: Check if tag exists
         id: check
         run: |
-          if [ "${{ steps.version.outputs.next }}" != "${{ steps.version.outputs.current }}" ]; then
-            echo "release=true" >> $GITHUB_OUTPUT
-            echo "Next version: ${{ steps.version.outputs.next }}"
-          else
+          if git rev-parse "v${{ steps.version.outputs.version }}" >/dev/null 2>&1; then
             echo "release=false" >> $GITHUB_OUTPUT
-            echo "No new version needed"
+            echo "Tag v${{ steps.version.outputs.version }} already exists"
+          else
+            echo "release=true" >> $GITHUB_OUTPUT
+            echo "Will create release v${{ steps.version.outputs.version }}"
           fi
 
       - uses: actions/setup-go@v5
@@ -43,7 +46,7 @@ jobs:
       - name: Build binaries
         if: steps.check.outputs.release == 'true'
         run: |
-          VERSION=${{ steps.version.outputs.next }}
+          VERSION=${{ steps.version.outputs.version }}
           mkdir -p dist
           GOOS=linux GOARCH=amd64 go build -ldflags="-w -s -X main.version=$VERSION" -o dist/gcp-api-mock-linux-amd64 ./cmd/server
           GOOS=darwin GOARCH=arm64 go build -ldflags="-w -s -X main.version=$VERSION" -o dist/gcp-api-mock-darwin-arm64 ./cmd/server
@@ -52,7 +55,7 @@ jobs:
         if: steps.check.outputs.release == 'true'
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ steps.version.outputs.next }}
+          tag_name: v${{ steps.version.outputs.version }}
           files: dist/*
           generate_release_notes: true
 
@@ -67,8 +70,9 @@ jobs:
       - name: Build and push Docker image
         if: steps.check.outputs.release == 'true'
         run: |
-          VERSION=${{ steps.version.outputs.next }}
-          docker build -t ghcr.io/${{ github.repository }}:$VERSION -t ghcr.io/${{ github.repository }}:latest .
-          docker push ghcr.io/${{ github.repository }}:$VERSION
-          docker push ghcr.io/${{ github.repository }}:latest
+          VERSION=${{ steps.version.outputs.version }}
+          REPO=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          docker build -t ghcr.io/$REPO:$VERSION -t ghcr.io/$REPO:latest .
+          docker push ghcr.io/$REPO:$VERSION
+          docker push ghcr.io/$REPO:latest
 
