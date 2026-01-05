@@ -1,0 +1,16 @@
+{{define "stats"}}
+<div class="stats-bar" id="stats-bar">
+    <span class="stat-item" id="stat-counts">
+        <span class="stat-label">STATS:</span>
+        <span class="stat-value" id="stat-buckets">{{.BucketCount}} buckets</span>
+        <span class="stat-sep">|</span>
+        <span class="stat-value" id="stat-objects">{{.ObjectCount}} objects</span>
+        <span class="stat-sep">|</span>
+        <span class="stat-value" id="stat-size">{{.SizeDisplay}} total</span>
+    </span>
+    <span class="stat-item auto-refresh-indicator" id="stat-refresh" im-preserve="true">
+        AUTO-REFRESH: 2s <span class="blink">●</span>
+    </span>
+</div>
+{{end}}
+

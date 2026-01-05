@@ -22,17 +22,17 @@ type PathParams struct {
 
 // Router handles HTTP routing for the GCP mock API
 type Router struct {
-	mux        *http.ServeMux
-	gcpRoutes  []gcpRoute
+	mux       *http.ServeMux
+	gcpRoutes []gcpRoute
 }
 
 // gcpRoute represents a GCP-style route with parameter extraction
 type gcpRoute struct {
-	pattern     string
-	regex       *regexp.Regexp
-	handler     http.HandlerFunc
-	hasBucket   bool
-	hasObject   bool
+	pattern   string
+	regex     *regexp.Regexp
+	handler   http.HandlerFunc
+	hasBucket bool
+	hasObject bool
 }
 
 // NewRouter creates a new Router instance
@@ -129,6 +129,28 @@ func GetPathParams(ctx context.Context) *PathParams {
 	if params, ok := ctx.Value(pathParamsKey).(*PathParams); ok {
 		return params
 	}
+	return nil
+}
+
+// GetPathParamsFromRequest retrieves path parameters from either the context (for GCP routes)
+// or from Go 1.22+ path values (for standard mux routes with {param} patterns)
+func GetPathParamsFromRequest(r *http.Request) *PathParams {
+	// First try context (GCP routes)
+	if params := GetPathParams(r.Context()); params != nil {
+		return params
+	}
+
+	// Try Go 1.22+ path values
+	bucket := r.PathValue("bucket")
+	object := r.PathValue("object")
+
+	if bucket != "" || object != "" {
+		return &PathParams{
+			Bucket: bucket,
+			Object: object,
+		}
+	}
+
 	return nil
 }
 

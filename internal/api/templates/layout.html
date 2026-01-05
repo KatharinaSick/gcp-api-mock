@@ -1,0 +1,268 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GCP Mock Console v1.0</title>
+    <link rel="stylesheet" href="/static/css/retro.css">
+    <script src="/static/js/htmx.min.js"></script>
+    <script src="/static/js/idiomorph-ext.min.js"></script>
+</head>
+<body hx-ext="morph">
+    <div class="console-container">
+        <header class="console-header">
+            <div class="header-title-group">
+                <div class="header-title">
+                    <span class="title-accent">▀▀▀</span> GCP MOCK CONSOLE v1.0 <span class="title-accent">▀▀▀</span>
+                </div>
+                <div class="header-project">Project ID: <span class="project-id">{{.ProjectID}}</span></div>
+            </div>
+            <div class="header-actions">
+                <button class="retro-btn" onclick="location.reload()" title="Refresh">[F5] REFRESH</button>
+                <button class="retro-btn" id="toggleAutoRefresh" onclick="toggleAutoRefresh()">
+                    AUTO: <span id="autoRefreshStatus">ON</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="console-main">
+            {{template "content" .}}
+        </main>
+
+        <footer class="console-footer" id="stats-footer">
+            {{template "stats" .Stats}}
+        </footer>
+    </div>
+
+    <!-- Create Bucket Modal -->
+    <div id="createBucketModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">[ CREATE NEW BUCKET ]</span>
+                <button class="modal-close" onclick="closeModal('createBucketModal')">×</button>
+            </div>
+            <form id="createBucketForm"
+                  hx-post="/api/dashboard/buckets"
+                  hx-target="#bucket-list"
+                  hx-swap="innerHTML"
+                  hx-on::after-request="closeModal('createBucketModal')">
+                <div class="form-group">
+                    <label for="bucketName">&gt; BUCKET NAME:</label>
+                    <input type="text" id="bucketName" name="name" required
+                           pattern="[a-z0-9\-_.]{3,63}"
+                           placeholder="my-bucket-name">
+                </div>
+                <div class="form-group">
+                    <label for="bucketLocation">&gt; LOCATION:</label>
+                    <select id="bucketLocation" name="location">
+                        <option value="US">US (Multi-region)</option>
+                        <option value="EU">EU (Multi-region)</option>
+                        <option value="ASIA">ASIA (Multi-region)</option>
+                        <option value="US-CENTRAL1">us-central1 (Iowa)</option>
+                        <option value="US-EAST1">us-east1 (South Carolina)</option>
+                        <option value="EUROPE-WEST1">europe-west1 (Belgium)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="bucketStorageClass">&gt; STORAGE CLASS:</label>
+                    <select id="bucketStorageClass" name="storageClass">
+                        <option value="STANDARD">STANDARD</option>
+                        <option value="NEARLINE">NEARLINE</option>
+                        <option value="COLDLINE">COLDLINE</option>
+                        <option value="ARCHIVE">ARCHIVE</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="retro-btn btn-cancel" onclick="closeModal('createBucketModal')">[CANCEL]</button>
+                    <button type="submit" class="retro-btn btn-primary">[CREATE]</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Bucket Modal -->
+    <div id="editBucketModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">[ EDIT BUCKET: <span id="editBucketName"></span> ]</span>
+                <button class="modal-close" onclick="closeModal('editBucketModal')">×</button>
+            </div>
+            <form id="editBucketForm"
+                  hx-target="#bucket-list"
+                  hx-swap="innerHTML"
+                  hx-on::after-request="closeModal('editBucketModal')">
+                <input type="hidden" id="editBucketNameHidden" name="bucketName">
+                <div class="form-group">
+                    <label for="editBucketLocation">&gt; LOCATION:</label>
+                    <select id="editBucketLocation" name="location">
+                        <option value="">-- Keep current --</option>
+                        <option value="US">US (Multi-region)</option>
+                        <option value="EU">EU (Multi-region)</option>
+                        <option value="ASIA">ASIA (Multi-region)</option>
+                        <option value="US-CENTRAL1">us-central1 (Iowa)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="editBucketStorageClass">&gt; STORAGE CLASS:</label>
+                    <select id="editBucketStorageClass" name="storageClass">
+                        <option value="">-- Keep current --</option>
+                        <option value="STANDARD">STANDARD</option>
+                        <option value="NEARLINE">NEARLINE</option>
+                        <option value="COLDLINE">COLDLINE</option>
+                        <option value="ARCHIVE">ARCHIVE</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="retro-btn btn-cancel" onclick="closeModal('editBucketModal')">[CANCEL]</button>
+                    <button type="submit" class="retro-btn btn-primary">[SAVE]</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Upload Object Modal -->
+    <div id="uploadObjectModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="modal-title">[ UPLOAD TO: <span id="uploadBucketName"></span> ]</span>
+                <button class="modal-close" onclick="closeModal('uploadObjectModal')">×</button>
+            </div>
+            <form id="uploadObjectForm"
+                  hx-encoding="multipart/form-data"
+                  hx-target="#bucket-list"
+                  hx-swap="innerHTML"
+                  hx-on::after-request="closeModal('uploadObjectModal')">
+                <div class="form-group">
+                    <label for="uploadFile">&gt; SELECT FILE:</label>
+                    <input type="file" id="uploadFile" name="file" required>
+                </div>
+                <div class="form-actions">
+                    <button type="button" class="retro-btn btn-cancel" onclick="closeModal('uploadObjectModal')">[CANCEL]</button>
+                    <button type="submit" class="retro-btn btn-primary">[UPLOAD]</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div id="confirmDeleteModal" class="modal" style="display: none;">
+        <div class="modal-content modal-small">
+            <div class="modal-header">
+                <span class="modal-title">[ CONFIRM DELETE ]</span>
+                <button class="modal-close" onclick="closeModal('confirmDeleteModal')">×</button>
+            </div>
+            <div class="modal-body">
+                <p id="confirmDeleteMessage" class="warning-text"></p>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="retro-btn btn-cancel" onclick="closeModal('confirmDeleteModal')">[CANCEL]</button>
+                <button type="button" id="confirmDeleteBtn" class="retro-btn btn-danger">[DELETE]</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auto-refresh state
+        let autoRefreshEnabled = true;
+
+        function toggleAutoRefresh() {
+            autoRefreshEnabled = !autoRefreshEnabled;
+            document.getElementById('autoRefreshStatus').textContent = autoRefreshEnabled ? 'ON' : 'OFF';
+
+            // Enable/disable htmx polling
+            if (autoRefreshEnabled) {
+                htmx.trigger(document.body, 'htmx:load');
+            }
+        }
+
+        // Modal functions
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'flex';
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        function openCreateBucketModal() {
+            document.getElementById('createBucketForm').reset();
+            openModal('createBucketModal');
+        }
+
+        function openEditBucketModal(bucketName, location, storageClass) {
+            document.getElementById('editBucketName').textContent = bucketName;
+            document.getElementById('editBucketNameHidden').value = bucketName;
+            document.getElementById('editBucketForm').setAttribute('hx-patch', '/api/dashboard/buckets/' + bucketName);
+            htmx.process(document.getElementById('editBucketForm'));
+            openModal('editBucketModal');
+        }
+
+        function openUploadModal(bucketName) {
+            document.getElementById('uploadBucketName').textContent = bucketName;
+            document.getElementById('uploadObjectForm').reset();
+            document.getElementById('uploadObjectForm').setAttribute('hx-post', '/api/dashboard/buckets/' + bucketName + '/objects');
+            htmx.process(document.getElementById('uploadObjectForm'));
+            openModal('uploadObjectModal');
+        }
+
+        function confirmDeleteBucket(bucketName) {
+            document.getElementById('confirmDeleteMessage').textContent =
+                'Are you sure you want to delete bucket "' + bucketName + '"?';
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                htmx.ajax('DELETE', '/api/dashboard/buckets/' + bucketName, {
+                    target: '#bucket-list',
+                    swap: 'innerHTML'
+                });
+                closeModal('confirmDeleteModal');
+            };
+            openModal('confirmDeleteModal');
+        }
+
+        function confirmDeleteObject(bucketName, objectName) {
+            document.getElementById('confirmDeleteMessage').textContent =
+                'Are you sure you want to delete object "' + objectName + '" from bucket "' + bucketName + '"?';
+            document.getElementById('confirmDeleteBtn').onclick = function() {
+                htmx.ajax('DELETE', '/api/dashboard/buckets/' + bucketName + '/objects/' + encodeURIComponent(objectName), {
+                    target: '#bucket-list',
+                    swap: 'innerHTML'
+                });
+                closeModal('confirmDeleteModal');
+            };
+            openModal('confirmDeleteModal');
+        }
+
+        function toggleBucket(bucketName) {
+            const content = document.getElementById('bucket-content-' + bucketName);
+            const toggle = document.getElementById('bucket-toggle-' + bucketName);
+            if (content.style.display === 'none') {
+                content.style.display = 'block';
+                toggle.textContent = '[-]';
+            } else {
+                content.style.display = 'none';
+                toggle.textContent = '[+]';
+            }
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.querySelectorAll('.modal').forEach(function(modal) {
+                    modal.style.display = 'none';
+                });
+            }
+        });
+
+        // Close modal on outside click
+        document.querySelectorAll('.modal').forEach(function(modal) {
+            modal.addEventListener('click', function(e) {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+{{end}}
+
