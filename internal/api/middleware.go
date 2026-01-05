@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,33 @@ func LoggingMiddleware(next http.Handler) http.Handler {
 
 		duration := time.Since(start)
 		log.Printf("%s %s %d %v", r.Method, r.URL.Path, wrapped.statusCode, duration)
+	})
+}
+
+// LoggingMiddlewareWithLogger creates a logging middleware that also logs to the RequestLogger
+func LoggingMiddlewareWithLogger(next http.Handler, logger *RequestLogger) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		// Wrap response writer to capture status code
+		wrapped := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+
+		next.ServeHTTP(wrapped, r)
+
+		duration := time.Since(start)
+
+		// Log to console
+		log.Printf("%s %s %d %v", r.Method, r.URL.Path, wrapped.statusCode, duration)
+
+		// Log to RequestLogger for dashboard (skip static files and dashboard partials)
+		path := r.URL.Path
+		if logger != nil &&
+			!strings.HasPrefix(path, "/static/") &&
+			!strings.HasPrefix(path, "/api/dashboard/partials/") &&
+			path != "/" &&
+			path != "/dashboard" {
+			logger.Log(r.Method, path, wrapped.statusCode, duration)
+		}
 	})
 }
 

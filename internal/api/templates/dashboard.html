@@ -1,0 +1,30 @@
+{{define "dashboard.html"}}
+{{template "layout" .}}
+{{end}}
+
+{{define "content"}}
+<div class="dashboard-grid" id="dashboard-grid"
+     hx-get="/api/dashboard/partials/all"
+     hx-trigger="every 2s"
+     hx-swap="none">
+    <section class="panel buckets-panel">
+        <div class="panel-header">
+            <span class="panel-title">&gt; STORAGE BUCKETS</span>
+            <button class="retro-btn btn-small btn-primary" onclick="openCreateBucketModal()">[+ NEW BUCKET]</button>
+        </div>
+        <div class="panel-content" id="bucket-list">
+            {{template "buckets" .}}
+        </div>
+    </section>
+
+    <section class="panel requests-panel">
+        <div class="panel-header">
+            <span class="panel-title">&gt; REQUEST LOG</span>
+        </div>
+        <div class="panel-content" id="request-log">
+            {{template "requests" .}}
+        </div>
+    </section>
+</div>
+{{end}}
+

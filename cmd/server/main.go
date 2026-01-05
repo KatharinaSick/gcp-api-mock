@@ -19,6 +19,7 @@ import (
 func main() {
 	// Configuration from environment variables
 	port := getEnv("PORT", "8080")
+	projectID := getEnv("PROJECT_ID", "playground")
 	logLevel := getEnv("LOG_LEVEL", "info")
 	shutdownTimeout := getEnvDuration("SHUTDOWN_TIMEOUT", 30*time.Second)
 
@@ -36,6 +37,10 @@ func main() {
 
 	// Link services for bucket-object relationship
 	bucketService.SetObjectService(objectService)
+	objectService.SetBucketService(bucketService)
+
+	// Create request logger for dashboard
+	requestLogger := api.NewRequestLogger(50)
 
 	// Create router
 	router := api.NewRouter()
@@ -47,26 +52,24 @@ func main() {
 	objectHandler := api.NewObjectHandler(objectService)
 	objectHandler.RegisterRoutes(router)
 
-	// Register health check endpoint
-	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+	// Register health check endpoint (before dashboard to avoid conflicts)
+	router.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
-	// Register a catch-all for undefined routes that returns GCP-compatible 404
-	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			api.WriteGCPError(w, http.StatusNotFound, "The requested URL was not found on this server.", "notFound")
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"name":"GCP API Mock","version":"0.1.0"}`))
+	// Create and register dashboard handler
+	dashboardHandler := api.NewDashboardHandler(bucketService, objectService, requestLogger, projectID)
+	dashboardHandler.RegisterRoutes(router)
+
+	// Root path redirects to dashboard
+	router.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/dashboard", http.StatusFound)
 	})
 
-	// Apply middleware chain: CORS -> Logging -> Router
-	handler := api.CORSMiddleware(api.LoggingMiddleware(router))
+	// Apply middleware chain: CORS -> Logging with RequestLogger -> Router
+	handler := api.CORSMiddleware(api.LoggingMiddlewareWithLogger(router, requestLogger))
 
 	// Create server
 	server := &http.Server{
