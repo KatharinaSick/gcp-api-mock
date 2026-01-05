@@ -83,7 +83,7 @@ func TestLoggingMiddleware_DefaultStatusCodeIs200(t *testing.T) {
 
 	// Handler that doesn't explicitly set status code
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	wrapped := LoggingMiddleware(handler)
@@ -396,7 +396,7 @@ func TestMiddleware_Chaining(t *testing.T) {
 
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Chain middleware: CORS -> Logging -> Handler

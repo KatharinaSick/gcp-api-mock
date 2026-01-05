@@ -65,9 +65,9 @@ func TestBucketHandler_ListBuckets(t *testing.T) {
 		bucketService := service.NewBucketService(factory)
 		
 		// Create test buckets
-		bucketService.Create("test-bucket-1", "123456789", "US", "STANDARD")
-		bucketService.Create("test-bucket-2", "123456789", "EU", "STANDARD")
-		bucketService.Create("other-project-bucket", "987654321", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket-1", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket-2", "123456789", "EU", "STANDARD")
+		_, _ = bucketService.Create("other-project-bucket", "987654321", "US", "STANDARD")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b?project=123456789", nil)
 		w := httptest.NewRecorder()
@@ -167,7 +167,7 @@ func TestBucketHandler_CreateBucket(t *testing.T) {
 	t.Run("returns error when bucket already exists", func(t *testing.T) {
 		handler, factory := setupTestBucketHandler()
 		bucketService := service.NewBucketService(factory)
-		bucketService.Create("existing-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("existing-bucket", "123456789", "US", "STANDARD")
 
 		body := map[string]interface{}{
 			"name": "existing-bucket",
@@ -190,7 +190,7 @@ func TestBucketHandler_GetBucket(t *testing.T) {
 	t.Run("returns bucket metadata successfully", func(t *testing.T) {
 		handler, factory := setupTestBucketHandler()
 		bucketService := service.NewBucketService(factory)
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		// Create a request with bucket parameter in context
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket", nil)
@@ -241,7 +241,7 @@ func TestBucketHandler_DeleteBucket(t *testing.T) {
 	t.Run("deletes bucket successfully", func(t *testing.T) {
 		handler, factory := setupTestBucketHandler()
 		bucketService := service.NewBucketService(factory)
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		req := httptest.NewRequest(http.MethodDelete, "/storage/v1/b/test-bucket", nil)
 		w := httptest.NewRecorder()
@@ -287,7 +287,7 @@ func TestBucketHandler_UpdateBucket(t *testing.T) {
 	t.Run("updates bucket metadata successfully", func(t *testing.T) {
 		handler, factory := setupTestBucketHandler()
 		bucketService := service.NewBucketService(factory)
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		body := map[string]interface{}{
 			"storageClass": "NEARLINE",

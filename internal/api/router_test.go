@@ -22,7 +22,7 @@ func TestRouter_HandleFunc(t *testing.T) {
 	// Register a simple handler
 	router.HandleFunc("/test", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("OK"))
+		_, _ = w.Write([]byte("OK"))
 	})
 
 	// Test that the route is registered and works
@@ -41,7 +41,7 @@ func TestRouter_Handle(t *testing.T) {
 	// Register a handler
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("Created"))
+		_, _ = w.Write([]byte("Created"))
 	})
 	router.Handle("/resource", handler)
 
@@ -267,13 +267,13 @@ func TestRouter_MultipleMethodsOnSamePath(t *testing.T) {
 	router := NewRouter()
 
 	router.HandleFunc("GET /resource", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("GET"))
+		_, _ = w.Write([]byte("GET"))
 	})
 	router.HandleFunc("POST /resource", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("POST"))
+		_, _ = w.Write([]byte("POST"))
 	})
 	router.HandleFunc("DELETE /resource", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("DELETE"))
+		_, _ = w.Write([]byte("DELETE"))
 	})
 
 	tests := []struct {

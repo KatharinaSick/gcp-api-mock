@@ -32,7 +32,7 @@ func TestObjectHandler_ListObjects(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
 		// Create a bucket first
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket/o", nil)
 		w := httptest.NewRecorder()
@@ -66,9 +66,9 @@ func TestObjectHandler_ListObjects(t *testing.T) {
 		handler, bucketService, objectService, _ := setupTestObjectHandler()
 
 		// Create bucket and objects
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
-		objectService.Create("test-bucket", "object1.txt", []byte("content1"), "text/plain")
-		objectService.Create("test-bucket", "object2.txt", []byte("content2"), "text/plain")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = objectService.Create("test-bucket", "object1.txt", []byte("content1"), "text/plain")
+		_, _ = objectService.Create("test-bucket", "object2.txt", []byte("content2"), "text/plain")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket/o", nil)
 		w := httptest.NewRecorder()
@@ -128,7 +128,7 @@ func TestObjectHandler_UploadObject(t *testing.T) {
 	t.Run("uploads object with simple upload", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		content := []byte("Hello, World!")
 		req := httptest.NewRequest(http.MethodPost, "/upload/storage/v1/b/test-bucket/o?name=test-file.txt", bytes.NewReader(content))
@@ -167,7 +167,7 @@ func TestObjectHandler_UploadObject(t *testing.T) {
 	t.Run("uploads object with multipart upload", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		// Create multipart request
 		var body bytes.Buffer
@@ -177,15 +177,15 @@ func TestObjectHandler_UploadObject(t *testing.T) {
 		metadataHeader := make(map[string][]string)
 		metadataHeader["Content-Type"] = []string{"application/json"}
 		metadataPart, _ := writer.CreatePart(metadataHeader)
-		metadataPart.Write([]byte(`{"name": "multipart-file.txt", "contentType": "text/plain"}`))
+		_, _ = metadataPart.Write([]byte(`{"name": "multipart-file.txt", "contentType": "text/plain"}`))
 
 		// Add content part
 		contentHeader := make(map[string][]string)
 		contentHeader["Content-Type"] = []string{"text/plain"}
 		contentPart, _ := writer.CreatePart(contentHeader)
-		contentPart.Write([]byte("Multipart content"))
+		_, _ = contentPart.Write([]byte("Multipart content"))
 
-		writer.Close()
+		_ = writer.Close()
 
 		req := httptest.NewRequest(http.MethodPost, "/upload/storage/v1/b/test-bucket/o", &body)
 		req.Header.Set("Content-Type", writer.FormDataContentType())
@@ -214,7 +214,7 @@ func TestObjectHandler_UploadObject(t *testing.T) {
 	t.Run("returns error when object name is missing", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		content := []byte("Hello")
 		req := httptest.NewRequest(http.MethodPost, "/upload/storage/v1/b/test-bucket/o", bytes.NewReader(content))
@@ -256,8 +256,8 @@ func TestObjectHandler_GetObject(t *testing.T) {
 	t.Run("returns object metadata successfully", func(t *testing.T) {
 		handler, bucketService, objectService, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
-		objectService.Create("test-bucket", "test-file.txt", []byte("Hello, World!"), "text/plain")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = objectService.Create("test-bucket", "test-file.txt", []byte("Hello, World!"), "text/plain")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket/o/test-file.txt", nil)
 		w := httptest.NewRecorder()
@@ -288,8 +288,8 @@ func TestObjectHandler_GetObject(t *testing.T) {
 	t.Run("downloads object content with alt=media", func(t *testing.T) {
 		handler, bucketService, objectService, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
-		objectService.Create("test-bucket", "test-file.txt", []byte("Hello, World!"), "text/plain")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = objectService.Create("test-bucket", "test-file.txt", []byte("Hello, World!"), "text/plain")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket/o/test-file.txt?alt=media", nil)
 		w := httptest.NewRecorder()
@@ -317,7 +317,7 @@ func TestObjectHandler_GetObject(t *testing.T) {
 	t.Run("returns error when object does not exist", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/test-bucket/o/non-existent.txt", nil)
 		w := httptest.NewRecorder()
@@ -355,8 +355,8 @@ func TestObjectHandler_DeleteObject(t *testing.T) {
 	t.Run("deletes object successfully", func(t *testing.T) {
 		handler, bucketService, objectService, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
-		objectService.Create("test-bucket", "test-file.txt", []byte("Hello"), "text/plain")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = objectService.Create("test-bucket", "test-file.txt", []byte("Hello"), "text/plain")
 
 		req := httptest.NewRequest(http.MethodDelete, "/storage/v1/b/test-bucket/o/test-file.txt", nil)
 		w := httptest.NewRecorder()
@@ -381,7 +381,7 @@ func TestObjectHandler_DeleteObject(t *testing.T) {
 	t.Run("returns error when object does not exist", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		req := httptest.NewRequest(http.MethodDelete, "/storage/v1/b/test-bucket/o/non-existent.txt", nil)
 		w := httptest.NewRecorder()
@@ -419,7 +419,7 @@ func TestObjectHandler_RegisterRoutes(t *testing.T) {
 	t.Run("routes are registered correctly", func(t *testing.T) {
 		handler, bucketService, _, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
 
 		router := NewRouter()
 		handler.RegisterRoutes(router)
@@ -464,8 +464,8 @@ func TestObjectHandler_RegisterRoutes(t *testing.T) {
 	t.Run("handles objects with path separators", func(t *testing.T) {
 		handler, bucketService, objectService, _ := setupTestObjectHandler()
 
-		bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
-		objectService.Create("test-bucket", "folder/subfolder/file.txt", []byte("content"), "text/plain")
+		_, _ = bucketService.Create("test-bucket", "123456789", "US", "STANDARD")
+		_, _ = objectService.Create("test-bucket", "folder/subfolder/file.txt", []byte("content"), "text/plain")
 
 		router := NewRouter()
 		handler.RegisterRoutes(router)

@@ -75,14 +75,14 @@ func WriteGCPError(w http.ResponseWriter, code int, message, reason string) {
 
 	setGCPHeaders(w)
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(gcpErr)
+	_ = json.NewEncoder(w).Encode(gcpErr)
 }
 
 // WriteGCPJSON writes a GCP-compatible JSON response
 func WriteGCPJSON(w http.ResponseWriter, code int, data interface{}) {
 	setGCPHeaders(w)
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(data)
+	_ = json.NewEncoder(w).Encode(data)
 }
 
 // WriteGCPNoContent writes a GCP-compatible no content response (204)

@@ -216,7 +216,7 @@ func (h *ObjectHandler) downloadObjectContent(w http.ResponseWriter, object *mod
 	w.Header().Set("ETag", object.Etag)
 	w.Header().Set("X-Goog-Generation", object.Generation)
 	w.WriteHeader(http.StatusOK)
-	w.Write(object.Content)
+	_, _ = w.Write(object.Content)
 }
 
 // DeleteObject handles DELETE /storage/v1/b/{bucket}/o/{object} - Delete object
