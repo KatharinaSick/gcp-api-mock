@@ -16,6 +16,9 @@ import (
 	"github.com/KatharinaSick/gcp-api-mock/internal/store/memory"
 )
 
+// version is set at build time via ldflags
+var version = "dev"
+
 func main() {
 	// Configuration from environment variables
 	port := getEnv("PORT", "8080")
@@ -86,7 +89,7 @@ func main() {
 
 	// Start server in goroutine
 	go func() {
-		log.Printf("Starting GCP API Mock server on port %s", port)
+		log.Printf("Starting GCP API Mock server v%s on port %s", version, port)
 		log.Printf("Log level: %s", logLevel)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Server error: %v", err)
