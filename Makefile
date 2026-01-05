@@ -1,10 +1,14 @@
-.PHONY: build run test clean
+.PHONY: build run test test-coverage clean deps tidy fmt lint docker-build docker-run all
 
 # Binary name
 BINARY_NAME=gcp-api-mock
 
 # Build directory
 BUILD_DIR=bin
+
+# Docker settings
+DOCKER_IMAGE=gcp-api-mock
+DOCKER_TAG=latest
 
 # Go parameters
 GOCMD=go
@@ -61,6 +65,16 @@ fmt:
 lint:
 	@echo "Linting code..."
 	golangci-lint run
+
+# Build Docker image
+docker-build:
+	@echo "Building Docker image..."
+	docker build -t $(DOCKER_IMAGE):$(DOCKER_TAG) .
+
+# Run Docker container
+docker-run: docker-build
+	@echo "Running Docker container..."
+	docker run -p 8080:8080 --rm $(DOCKER_IMAGE):$(DOCKER_TAG)
 
 # Default target
 all: clean build test
