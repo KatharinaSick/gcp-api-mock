@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"github.com/KatharinaSick/gcp-api-mock/internal/api"
+	"github.com/KatharinaSick/gcp-api-mock/internal/service"
+	"github.com/KatharinaSick/gcp-api-mock/internal/store"
+	"github.com/KatharinaSick/gcp-api-mock/internal/store/memory"
 )
 
 func main() {
@@ -22,14 +25,33 @@ func main() {
 	// Configure logging based on log level
 	configureLogging(logLevel)
 
+	// Create store factory with in-memory stores
+	storeFactory := store.NewStoreFactory(func() store.Store {
+		return memory.New()
+	})
+
+	// Create services
+	bucketService := service.NewBucketService(storeFactory)
+	objectService := service.NewObjectService(storeFactory)
+
+	// Link services for bucket-object relationship
+	bucketService.SetObjectService(objectService)
+
 	// Create router
 	router := api.NewRouter()
+
+	// Create and register handlers
+	bucketHandler := api.NewBucketHandler(bucketService)
+	bucketHandler.RegisterRoutes(router)
+
+	objectHandler := api.NewObjectHandler(objectService)
+	objectHandler.RegisterRoutes(router)
 
 	// Register health check endpoint
 	router.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"status":"ok"}`))
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
 	})
 
 	// Register a catch-all for undefined routes that returns GCP-compatible 404
@@ -40,7 +62,7 @@ func main() {
 		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"name":"GCP API Mock","version":"0.1.0"}`))
+		_, _ = w.Write([]byte(`{"name":"GCP API Mock","version":"0.1.0"}`))
 	})
 
 	// Apply middleware chain: CORS -> Logging -> Router

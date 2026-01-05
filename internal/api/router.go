@@ -132,6 +132,11 @@ func GetPathParams(ctx context.Context) *PathParams {
 	return nil
 }
 
+// SetPathParams sets path parameters in the context (useful for testing)
+func SetPathParams(ctx context.Context, params *PathParams) context.Context {
+	return context.WithValue(ctx, pathParamsKey, params)
+}
+
 // ExtractPathParams extracts bucket and object names from a GCP Storage API path
 // Returns the extracted parameters and a boolean indicating success
 func ExtractPathParams(path string) (*PathParams, bool) {
