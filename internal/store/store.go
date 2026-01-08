@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ksick/gcp-api-mock/internal/sqladmin"
 	"github.com/ksick/gcp-api-mock/internal/storage"
 )
 
@@ -22,6 +23,16 @@ type Store struct {
 	buckets map[string]*storage.Bucket
 	// objects is a map of bucket name to a map of object name to object
 	objects map[string]map[string]*ObjectData
+
+	// Cloud SQL data
+	// sqlInstances is a map of instance name to database instance
+	sqlInstances map[string]*sqladmin.DatabaseInstance
+	// sqlDatabases is a map of instance name to a map of database name to database
+	sqlDatabases map[string]map[string]*sqladmin.Database
+	// sqlUsers is a map of instance name to a map of user key (name@host) to user
+	sqlUsers map[string]map[string]*sqladmin.User
+	// sqlOperations is a map of operation name to operation
+	sqlOperations map[string]*sqladmin.Operation
 
 	// baseURL is the base URL for generating self links
 	baseURL string
@@ -42,6 +53,10 @@ func New() *Store {
 	return &Store{
 		buckets:       make(map[string]*storage.Bucket),
 		objects:       make(map[string]map[string]*ObjectData),
+		sqlInstances:  make(map[string]*sqladmin.DatabaseInstance),
+		sqlDatabases:  make(map[string]map[string]*sqladmin.Database),
+		sqlUsers:      make(map[string]map[string]*sqladmin.User),
+		sqlOperations: make(map[string]*sqladmin.Operation),
 		baseURL:       "http://localhost:8080",
 		projectID:     "mock-project",
 		projectNumber: 123456789012,
@@ -56,6 +71,10 @@ func (s *Store) Reset() {
 
 	s.buckets = make(map[string]*storage.Bucket)
 	s.objects = make(map[string]map[string]*ObjectData)
+	s.sqlInstances = make(map[string]*sqladmin.DatabaseInstance)
+	s.sqlDatabases = make(map[string]map[string]*sqladmin.Database)
+	s.sqlUsers = make(map[string]map[string]*sqladmin.User)
+	s.sqlOperations = make(map[string]*sqladmin.Operation)
 }
 
 // SetBaseURL sets the base URL for generating self links.
@@ -412,4 +431,586 @@ func indexOf(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// =============================================================================
+// Cloud SQL Instance Operations
+// =============================================================================
+
+// CreateSQLInstance creates a new Cloud SQL instance in the store.
+// Returns an error if an instance with the same name already exists.
+func (s *Store) CreateSQLInstance(req *sqladmin.InstanceInsertRequest) (*sqladmin.DatabaseInstance, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.sqlInstances[req.Name]; exists {
+		return nil, nil, fmt.Errorf("instance %s already exists", req.Name)
+	}
+
+	now := time.Now().UTC()
+
+	// Set defaults
+	region := req.Region
+	if region == "" {
+		region = "us-central1"
+	}
+
+	databaseVersion := req.DatabaseVersion
+	if databaseVersion == "" {
+		databaseVersion = "MYSQL_8_0"
+	}
+
+	// Create default settings if not provided
+	settings := req.Settings
+	if settings == nil {
+		settings = &sqladmin.Settings{}
+	}
+	settings.Kind = "sql#settings"
+	settings.SettingsVersion = 1
+
+	if settings.Tier == "" {
+		settings.Tier = "db-n1-standard-1"
+	}
+	if settings.AvailabilityType == "" {
+		settings.AvailabilityType = "ZONAL"
+	}
+	if settings.PricingPlan == "" {
+		settings.PricingPlan = "PER_USE"
+	}
+	if settings.ActivationPolicy == "" {
+		settings.ActivationPolicy = "ALWAYS"
+	}
+	if settings.DataDiskType == "" {
+		settings.DataDiskType = "PD_SSD"
+	}
+	if settings.DataDiskSizeGb == 0 {
+		settings.DataDiskSizeGb = 10
+	}
+
+	// Generate a mock IP address
+	mockIP := fmt.Sprintf("10.%d.%d.%d", time.Now().UnixNano()%256, time.Now().UnixNano()%256, time.Now().UnixNano()%256)
+
+	instance := &sqladmin.DatabaseInstance{
+		Kind:            "sql#instance",
+		Name:            req.Name,
+		State:           "RUNNABLE",
+		DatabaseVersion: databaseVersion,
+		Region:          region,
+		Project:         s.projectID,
+		BackendType:     "SECOND_GEN",
+		InstanceType:    "CLOUD_SQL_INSTANCE",
+		SelfLink:        fmt.Sprintf("%s/sql/v1beta4/projects/%s/instances/%s", s.baseURL, s.projectID, req.Name),
+		ConnectionName:  fmt.Sprintf("%s:%s:%s", s.projectID, region, req.Name),
+		CreateTime:      now,
+		Settings:        settings,
+		Etag:            generateEtag(),
+		GceZone:         fmt.Sprintf("%s-a", region),
+		IPAddresses: []*sqladmin.IPMapping{
+			{
+				Type:      "PRIMARY",
+				IPAddress: mockIP,
+			},
+		},
+		ServiceAccountEmailAddress: fmt.Sprintf("p%d-abc123@gcp-sa-cloud-sql.iam.gserviceaccount.com", s.projectNumber),
+	}
+
+	if req.MasterInstanceName != "" {
+		instance.MasterInstanceName = req.MasterInstanceName
+		instance.InstanceType = "READ_REPLICA_INSTANCE"
+	}
+
+	s.sqlInstances[req.Name] = instance
+	s.sqlDatabases[req.Name] = make(map[string]*sqladmin.Database)
+	s.sqlUsers[req.Name] = make(map[string]*sqladmin.User)
+
+	// Create a default database
+	defaultDB := &sqladmin.Database{
+		Kind:      "sql#database",
+		Name:      "mysql",
+		Charset:   "utf8",
+		Collation: "utf8_general_ci",
+		Instance:  req.Name,
+		Project:   s.projectID,
+		SelfLink:  fmt.Sprintf("%s/sql/v1beta4/projects/%s/instances/%s/databases/mysql", s.baseURL, s.projectID, req.Name),
+		Etag:      generateEtag(),
+	}
+	s.sqlDatabases[req.Name]["mysql"] = defaultDB
+
+	// Create a default root user
+	rootUser := &sqladmin.User{
+		Kind:     "sql#user",
+		Name:     "root",
+		Host:     "%",
+		Instance: req.Name,
+		Project:  s.projectID,
+		Type:     "BUILT_IN",
+		Etag:     generateEtag(),
+	}
+	s.sqlUsers[req.Name]["root@%"] = rootUser
+
+	// Create operation
+	op := s.createOperation("CREATE", req.Name, now)
+
+	return instance, op, nil
+}
+
+// GetSQLInstance retrieves a Cloud SQL instance by name.
+// Returns nil if the instance doesn't exist.
+func (s *Store) GetSQLInstance(name string) *sqladmin.DatabaseInstance {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.sqlInstances[name]
+}
+
+// ListSQLInstances returns all Cloud SQL instances in the store.
+func (s *Store) ListSQLInstances() []*sqladmin.DatabaseInstance {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	instances := make([]*sqladmin.DatabaseInstance, 0, len(s.sqlInstances))
+	for _, instance := range s.sqlInstances {
+		instances = append(instances, instance)
+	}
+
+	// Sort by name for consistent ordering
+	sort.Slice(instances, func(i, j int) bool {
+		return instances[i].Name < instances[j].Name
+	})
+
+	return instances
+}
+
+// UpdateSQLInstance updates an existing Cloud SQL instance.
+// Returns an error if the instance doesn't exist.
+func (s *Store) UpdateSQLInstance(name string, req *sqladmin.InstancePatchRequest) (*sqladmin.DatabaseInstance, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instance, exists := s.sqlInstances[name]
+	if !exists {
+		return nil, nil, fmt.Errorf("instance %s not found", name)
+	}
+
+	now := time.Now().UTC()
+
+	if req.Settings != nil {
+		if req.Settings.Tier != "" {
+			instance.Settings.Tier = req.Settings.Tier
+		}
+		if req.Settings.AvailabilityType != "" {
+			instance.Settings.AvailabilityType = req.Settings.AvailabilityType
+		}
+		if req.Settings.DataDiskSizeGb > 0 {
+			instance.Settings.DataDiskSizeGb = req.Settings.DataDiskSizeGb
+		}
+		if req.Settings.UserLabels != nil {
+			instance.Settings.UserLabels = req.Settings.UserLabels
+		}
+		if req.Settings.IPConfiguration != nil {
+			instance.Settings.IPConfiguration = req.Settings.IPConfiguration
+		}
+		if req.Settings.BackupConfiguration != nil {
+			instance.Settings.BackupConfiguration = req.Settings.BackupConfiguration
+		}
+		if req.Settings.MaintenanceWindow != nil {
+			instance.Settings.MaintenanceWindow = req.Settings.MaintenanceWindow
+		}
+		if req.Settings.DatabaseFlags != nil {
+			instance.Settings.DatabaseFlags = req.Settings.DatabaseFlags
+		}
+		instance.Settings.DeletionProtectionEnabled = req.Settings.DeletionProtectionEnabled
+		instance.Settings.SettingsVersion++
+	}
+
+	instance.Etag = generateEtag()
+
+	// Create operation
+	op := s.createOperation("UPDATE", name, now)
+
+	return instance, op, nil
+}
+
+// DeleteSQLInstance deletes a Cloud SQL instance by name.
+// Returns an error if the instance doesn't exist.
+func (s *Store) DeleteSQLInstance(name string) (*sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instance, exists := s.sqlInstances[name]
+	if !exists {
+		return nil, fmt.Errorf("instance %s not found", name)
+	}
+
+	// Check for deletion protection
+	if instance.Settings != nil && instance.Settings.DeletionProtectionEnabled {
+		return nil, fmt.Errorf("instance %s has deletion protection enabled", name)
+	}
+
+	now := time.Now().UTC()
+
+	delete(s.sqlInstances, name)
+	delete(s.sqlDatabases, name)
+	delete(s.sqlUsers, name)
+
+	// Create operation
+	op := s.createOperation("DELETE", name, now)
+
+	return op, nil
+}
+
+// =============================================================================
+// Cloud SQL Database Operations
+// =============================================================================
+
+// CreateSQLDatabase creates a new database in a Cloud SQL instance.
+// Returns an error if the instance doesn't exist or database already exists.
+func (s *Store) CreateSQLDatabase(instanceName string, req *sqladmin.DatabaseInsertRequest) (*sqladmin.Database, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceDBs, exists := s.sqlDatabases[instanceName]
+	if !exists {
+		return nil, nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	if _, exists := instanceDBs[req.Name]; exists {
+		return nil, nil, fmt.Errorf("database %s already exists in instance %s", req.Name, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	// Set defaults
+	charset := req.Charset
+	if charset == "" {
+		charset = "utf8"
+	}
+
+	collation := req.Collation
+	if collation == "" {
+		collation = "utf8_general_ci"
+	}
+
+	db := &sqladmin.Database{
+		Kind:      "sql#database",
+		Name:      req.Name,
+		Charset:   charset,
+		Collation: collation,
+		Instance:  instanceName,
+		Project:   s.projectID,
+		SelfLink:  fmt.Sprintf("%s/sql/v1beta4/projects/%s/instances/%s/databases/%s", s.baseURL, s.projectID, instanceName, req.Name),
+		Etag:      generateEtag(),
+	}
+
+	instanceDBs[req.Name] = db
+
+	// Create operation
+	op := s.createOperation("CREATE_DATABASE", instanceName, now)
+
+	return db, op, nil
+}
+
+// GetSQLDatabase retrieves a database by instance and database name.
+// Returns nil if the database doesn't exist.
+func (s *Store) GetSQLDatabase(instanceName, dbName string) *sqladmin.Database {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	instanceDBs, exists := s.sqlDatabases[instanceName]
+	if !exists {
+		return nil
+	}
+
+	return instanceDBs[dbName]
+}
+
+// ListSQLDatabases returns all databases in a Cloud SQL instance.
+func (s *Store) ListSQLDatabases(instanceName string) ([]*sqladmin.Database, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	instanceDBs, exists := s.sqlDatabases[instanceName]
+	if !exists {
+		return nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	databases := make([]*sqladmin.Database, 0, len(instanceDBs))
+	for _, db := range instanceDBs {
+		databases = append(databases, db)
+	}
+
+	// Sort by name for consistent ordering
+	sort.Slice(databases, func(i, j int) bool {
+		return databases[i].Name < databases[j].Name
+	})
+
+	return databases, nil
+}
+
+// UpdateSQLDatabase updates an existing database in a Cloud SQL instance.
+// Returns an error if the instance or database doesn't exist.
+func (s *Store) UpdateSQLDatabase(instanceName, dbName string, req *sqladmin.DatabasePatchRequest) (*sqladmin.Database, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceDBs, exists := s.sqlDatabases[instanceName]
+	if !exists {
+		return nil, nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	db, exists := instanceDBs[dbName]
+	if !exists {
+		return nil, nil, fmt.Errorf("database %s not found in instance %s", dbName, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	if req.Charset != "" {
+		db.Charset = req.Charset
+	}
+	if req.Collation != "" {
+		db.Collation = req.Collation
+	}
+	db.Etag = generateEtag()
+
+	// Create operation
+	op := s.createOperation("UPDATE_DATABASE", instanceName, now)
+
+	return db, op, nil
+}
+
+// DeleteSQLDatabase deletes a database from a Cloud SQL instance.
+// Returns an error if the instance or database doesn't exist.
+func (s *Store) DeleteSQLDatabase(instanceName, dbName string) (*sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceDBs, exists := s.sqlDatabases[instanceName]
+	if !exists {
+		return nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	if _, exists := instanceDBs[dbName]; !exists {
+		return nil, fmt.Errorf("database %s not found in instance %s", dbName, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	delete(instanceDBs, dbName)
+
+	// Create operation
+	op := s.createOperation("DELETE_DATABASE", instanceName, now)
+
+	return op, nil
+}
+
+// =============================================================================
+// Cloud SQL User Operations
+// =============================================================================
+
+// userKey generates a unique key for a user based on name and host.
+func userKey(name, host string) string {
+	if host == "" {
+		host = "%"
+	}
+	return fmt.Sprintf("%s@%s", name, host)
+}
+
+// CreateSQLUser creates a new user in a Cloud SQL instance.
+// Returns an error if the instance doesn't exist or user already exists.
+func (s *Store) CreateSQLUser(instanceName string, req *sqladmin.UserInsertRequest) (*sqladmin.User, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceUsers, exists := s.sqlUsers[instanceName]
+	if !exists {
+		return nil, nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	host := req.Host
+	if host == "" {
+		host = "%"
+	}
+
+	key := userKey(req.Name, host)
+	if _, exists := instanceUsers[key]; exists {
+		return nil, nil, fmt.Errorf("user %s already exists in instance %s", key, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	userType := req.Type
+	if userType == "" {
+		userType = "BUILT_IN"
+	}
+
+	user := &sqladmin.User{
+		Kind:     "sql#user",
+		Name:     req.Name,
+		Host:     host,
+		Instance: instanceName,
+		Project:  s.projectID,
+		Type:     userType,
+		Etag:     generateEtag(),
+	}
+
+	instanceUsers[key] = user
+
+	// Create operation
+	op := s.createOperation("CREATE_USER", instanceName, now)
+
+	return user, op, nil
+}
+
+// GetSQLUser retrieves a user by instance, user name, and host.
+// Returns nil if the user doesn't exist.
+func (s *Store) GetSQLUser(instanceName, userName, host string) *sqladmin.User {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	instanceUsers, exists := s.sqlUsers[instanceName]
+	if !exists {
+		return nil
+	}
+
+	return instanceUsers[userKey(userName, host)]
+}
+
+// ListSQLUsers returns all users in a Cloud SQL instance.
+func (s *Store) ListSQLUsers(instanceName string) ([]*sqladmin.User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	instanceUsers, exists := s.sqlUsers[instanceName]
+	if !exists {
+		return nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	users := make([]*sqladmin.User, 0, len(instanceUsers))
+	for _, user := range instanceUsers {
+		users = append(users, user)
+	}
+
+	// Sort by name for consistent ordering
+	sort.Slice(users, func(i, j int) bool {
+		return users[i].Name < users[j].Name
+	})
+
+	return users, nil
+}
+
+// UpdateSQLUser updates an existing user in a Cloud SQL instance.
+// Returns an error if the instance or user doesn't exist.
+func (s *Store) UpdateSQLUser(instanceName, userName, host string, req *sqladmin.UserUpdateRequest) (*sqladmin.User, *sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceUsers, exists := s.sqlUsers[instanceName]
+	if !exists {
+		return nil, nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	key := userKey(userName, host)
+	user, exists := instanceUsers[key]
+	if !exists {
+		return nil, nil, fmt.Errorf("user %s not found in instance %s", key, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	// Note: password is not stored in the response
+	if req.Host != "" && req.Host != host {
+		// Host changed - need to re-key
+		delete(instanceUsers, key)
+		user.Host = req.Host
+		instanceUsers[userKey(userName, req.Host)] = user
+	}
+	user.Etag = generateEtag()
+
+	// Create operation
+	op := s.createOperation("UPDATE_USER", instanceName, now)
+
+	return user, op, nil
+}
+
+// DeleteSQLUser deletes a user from a Cloud SQL instance.
+// Returns an error if the instance or user doesn't exist.
+func (s *Store) DeleteSQLUser(instanceName, userName, host string) (*sqladmin.Operation, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	instanceUsers, exists := s.sqlUsers[instanceName]
+	if !exists {
+		return nil, fmt.Errorf("instance %s not found", instanceName)
+	}
+
+	key := userKey(userName, host)
+	if _, exists := instanceUsers[key]; !exists {
+		return nil, fmt.Errorf("user %s not found in instance %s", key, instanceName)
+	}
+
+	now := time.Now().UTC()
+
+	delete(instanceUsers, key)
+
+	// Create operation
+	op := s.createOperation("DELETE_USER", instanceName, now)
+
+	return op, nil
+}
+
+// =============================================================================
+// Cloud SQL Operation Operations
+// =============================================================================
+
+// createOperation creates and stores a new operation.
+func (s *Store) createOperation(opType, targetID string, now time.Time) *sqladmin.Operation {
+	opName := fmt.Sprintf("operation-%d", now.UnixNano())
+
+	op := &sqladmin.Operation{
+		Kind:          "sql#operation",
+		Name:          opName,
+		Status:        "DONE",
+		OperationType: opType,
+		InsertTime:    now,
+		StartTime:     now,
+		EndTime:       now,
+		TargetProject: s.projectID,
+		TargetId:      targetID,
+		SelfLink:      fmt.Sprintf("%s/sql/v1beta4/projects/%s/operations/%s", s.baseURL, s.projectID, opName),
+		TargetLink:    fmt.Sprintf("%s/sql/v1beta4/projects/%s/instances/%s", s.baseURL, s.projectID, targetID),
+	}
+
+	s.sqlOperations[opName] = op
+
+	return op
+}
+
+// GetSQLOperation retrieves an operation by name.
+// Returns nil if the operation doesn't exist.
+func (s *Store) GetSQLOperation(name string) *sqladmin.Operation {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.sqlOperations[name]
+}
+
+// ListSQLOperations returns all operations in the store, optionally filtered by instance.
+func (s *Store) ListSQLOperations(instanceName string) []*sqladmin.Operation {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	operations := make([]*sqladmin.Operation, 0, len(s.sqlOperations))
+	for _, op := range s.sqlOperations {
+		if instanceName == "" || op.TargetId == instanceName {
+			operations = append(operations, op)
+		}
+	}
+
+	// Sort by insert time (newest first)
+	sort.Slice(operations, func(i, j int) bool {
+		return operations[i].InsertTime.After(operations[j].InsertTime)
+	})
+
+	return operations
 }

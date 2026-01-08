@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ksick/gcp-api-mock/internal/config"
+	"github.com/ksick/gcp-api-mock/internal/sqladmin"
 	"github.com/ksick/gcp-api-mock/internal/storage"
 )
 
@@ -295,5 +296,301 @@ func TestServer_HealthEndpoints(t *testing.T) {
 				t.Errorf("expected status %d, got %d", tt.wantStatus, rr.Code)
 			}
 		})
+	}
+}
+
+func TestServer_SQLInstanceCRUD(t *testing.T) {
+	cleanup := changeToProjectRoot(t)
+	defer cleanup()
+
+	cfg := &config.Config{}
+	srv := New(cfg)
+
+	// Create instance
+	createReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances",
+		strings.NewReader(`{"name": "test-sql-instance", "databaseVersion": "MYSQL_8_0", "region": "us-central1"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create instance failed: %d - %s", rr.Code, rr.Body.String())
+	}
+
+	var op sqladmin.Operation
+	if err := json.NewDecoder(rr.Body).Decode(&op); err != nil {
+		t.Fatalf("failed to decode operation: %v", err)
+	}
+
+	if op.OperationType != "CREATE" {
+		t.Errorf("operation type = %s, want CREATE", op.OperationType)
+	}
+
+	// Get instance
+	getReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/test-sql-instance", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, getReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("get instance failed: %d", rr.Code)
+	}
+
+	var instance sqladmin.DatabaseInstance
+	if err := json.NewDecoder(rr.Body).Decode(&instance); err != nil {
+		t.Fatalf("failed to decode instance: %v", err)
+	}
+
+	if instance.Name != "test-sql-instance" {
+		t.Errorf("instance name = %s, want test-sql-instance", instance.Name)
+	}
+
+	// List instances
+	listReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, listReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("list instances failed: %d", rr.Code)
+	}
+
+	var instanceList sqladmin.InstancesListResponse
+	if err := json.NewDecoder(rr.Body).Decode(&instanceList); err != nil {
+		t.Fatalf("failed to decode instance list: %v", err)
+	}
+
+	if len(instanceList.Items) != 1 {
+		t.Errorf("expected 1 instance, got %d", len(instanceList.Items))
+	}
+
+	// Update instance
+	updateReq := httptest.NewRequest(http.MethodPatch, "/sql/v1beta4/projects/test-project/instances/test-sql-instance",
+		strings.NewReader(`{"settings": {"tier": "db-n1-standard-2"}}`))
+	updateReq.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, updateReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("update instance failed: %d - %s", rr.Code, rr.Body.String())
+	}
+
+	// Delete instance
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/sql/v1beta4/projects/test-project/instances/test-sql-instance", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, deleteReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("delete instance failed: %d - %s", rr.Code, rr.Body.String())
+	}
+
+	// Verify instance is gone
+	getReq = httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/test-sql-instance", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, getReq)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected not found after delete, got %d", rr.Code)
+	}
+}
+
+func TestServer_SQLDatabaseCRUD(t *testing.T) {
+	cleanup := changeToProjectRoot(t)
+	defer cleanup()
+
+	cfg := &config.Config{}
+	srv := New(cfg)
+
+	// Create instance first
+	createInstanceReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances",
+		strings.NewReader(`{"name": "db-test-instance"}`))
+	createInstanceReq.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createInstanceReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create instance failed: %d", rr.Code)
+	}
+
+	// Create database
+	createDBReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances/db-test-instance/databases",
+		strings.NewReader(`{"name": "mydb", "charset": "utf8mb4"}`))
+	createDBReq.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createDBReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create database failed: %d - %s", rr.Code, rr.Body.String())
+	}
+
+	// Get database
+	getReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/db-test-instance/databases/mydb", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, getReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("get database failed: %d", rr.Code)
+	}
+
+	var db sqladmin.Database
+	if err := json.NewDecoder(rr.Body).Decode(&db); err != nil {
+		t.Fatalf("failed to decode database: %v", err)
+	}
+
+	if db.Name != "mydb" {
+		t.Errorf("database name = %s, want mydb", db.Name)
+	}
+
+	// List databases
+	listReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/db-test-instance/databases", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, listReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("list databases failed: %d", rr.Code)
+	}
+
+	var dbList sqladmin.DatabasesListResponse
+	if err := json.NewDecoder(rr.Body).Decode(&dbList); err != nil {
+		t.Fatalf("failed to decode database list: %v", err)
+	}
+
+	// Should have default mysql db + our db
+	if len(dbList.Items) != 2 {
+		t.Errorf("expected 2 databases, got %d", len(dbList.Items))
+	}
+
+	// Delete database
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/sql/v1beta4/projects/test-project/instances/db-test-instance/databases/mydb", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, deleteReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("delete database failed: %d", rr.Code)
+	}
+
+	// Verify database is gone
+	getReq = httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/db-test-instance/databases/mydb", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, getReq)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected not found after delete, got %d", rr.Code)
+	}
+}
+
+func TestServer_SQLUserCRUD(t *testing.T) {
+	cleanup := changeToProjectRoot(t)
+	defer cleanup()
+
+	cfg := &config.Config{}
+	srv := New(cfg)
+
+	// Create instance first
+	createInstanceReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances",
+		strings.NewReader(`{"name": "user-test-instance"}`))
+	createInstanceReq.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createInstanceReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create instance failed: %d", rr.Code)
+	}
+
+	// Create user
+	createUserReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances/user-test-instance/users",
+		strings.NewReader(`{"name": "appuser", "password": "secret123", "host": "%"}`))
+	createUserReq.Header.Set("Content-Type", "application/json")
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createUserReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create user failed: %d - %s", rr.Code, rr.Body.String())
+	}
+
+	// List users
+	listReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/instances/user-test-instance/users", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, listReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("list users failed: %d", rr.Code)
+	}
+
+	var userList sqladmin.UsersListResponse
+	if err := json.NewDecoder(rr.Body).Decode(&userList); err != nil {
+		t.Fatalf("failed to decode user list: %v", err)
+	}
+
+	// Should have default root user + our user
+	if len(userList.Items) != 2 {
+		t.Errorf("expected 2 users, got %d", len(userList.Items))
+	}
+
+	// Delete user
+	deleteReq := httptest.NewRequest(http.MethodDelete, "/sql/v1beta4/projects/test-project/instances/user-test-instance/users?name=appuser&host=%25", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, deleteReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("delete user failed: %d - %s", rr.Code, rr.Body.String())
+	}
+}
+
+func TestServer_SQLOperations(t *testing.T) {
+	cleanup := changeToProjectRoot(t)
+	defer cleanup()
+
+	cfg := &config.Config{}
+	srv := New(cfg)
+
+	// Create instance to generate an operation
+	createReq := httptest.NewRequest(http.MethodPost, "/sql/v1beta4/projects/test-project/instances",
+		strings.NewReader(`{"name": "op-test-instance"}`))
+	createReq.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, createReq)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("create instance failed: %d", rr.Code)
+	}
+
+	var createOp sqladmin.Operation
+	if err := json.NewDecoder(rr.Body).Decode(&createOp); err != nil {
+		t.Fatalf("failed to decode operation: %v", err)
+	}
+
+	// List operations
+	listReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/operations", nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, listReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("list operations failed: %d", rr.Code)
+	}
+
+	var opList sqladmin.OperationsListResponse
+	if err := json.NewDecoder(rr.Body).Decode(&opList); err != nil {
+		t.Fatalf("failed to decode operation list: %v", err)
+	}
+
+	if len(opList.Items) < 1 {
+		t.Errorf("expected at least 1 operation, got %d", len(opList.Items))
+	}
+
+	// Get operation
+	getReq := httptest.NewRequest(http.MethodGet, "/sql/v1beta4/projects/test-project/operations/"+createOp.Name, nil)
+	rr = httptest.NewRecorder()
+	srv.Handler.ServeHTTP(rr, getReq)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("get operation failed: %d", rr.Code)
+	}
+
+	var op sqladmin.Operation
+	if err := json.NewDecoder(rr.Body).Decode(&op); err != nil {
+		t.Fatalf("failed to decode operation: %v", err)
+	}
+
+	if op.Name != createOp.Name {
+		t.Errorf("operation name = %s, want %s", op.Name, createOp.Name)
 	}
 }

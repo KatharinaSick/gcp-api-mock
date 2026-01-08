@@ -41,6 +41,7 @@ func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
 	// Create handlers
 	healthHandler := handler.NewHealth()
 	storageHandler := handler.NewStorage(dataStore)
+	sqlAdminHandler := handler.NewSQLAdmin(dataStore)
 
 	// Health check routes
 	mux.HandleFunc("GET /health", healthHandler.Check)
@@ -72,6 +73,32 @@ func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
 
 	// Object download (alternative download endpoint)
 	mux.HandleFunc("GET /download/storage/v1/b/{bucket}/o/{object...}", storageHandler.DownloadObject)
+
+	// Cloud SQL Admin API routes
+	// Note: Cloud SQL uses v1beta4 API (unlike Storage which uses v1)
+	// Instance operations
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/instances", sqlAdminHandler.ListInstances)
+	mux.HandleFunc("POST /sql/v1beta4/projects/{project}/instances", sqlAdminHandler.CreateInstance)
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/instances/{instance}", sqlAdminHandler.GetInstance)
+	mux.HandleFunc("PATCH /sql/v1beta4/projects/{project}/instances/{instance}", sqlAdminHandler.UpdateInstance)
+	mux.HandleFunc("DELETE /sql/v1beta4/projects/{project}/instances/{instance}", sqlAdminHandler.DeleteInstance)
+
+	// Database operations
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/instances/{instance}/databases", sqlAdminHandler.ListDatabases)
+	mux.HandleFunc("POST /sql/v1beta4/projects/{project}/instances/{instance}/databases", sqlAdminHandler.CreateDatabase)
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/instances/{instance}/databases/{database}", sqlAdminHandler.GetDatabase)
+	mux.HandleFunc("PATCH /sql/v1beta4/projects/{project}/instances/{instance}/databases/{database}", sqlAdminHandler.UpdateDatabase)
+	mux.HandleFunc("DELETE /sql/v1beta4/projects/{project}/instances/{instance}/databases/{database}", sqlAdminHandler.DeleteDatabase)
+
+	// User operations
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/instances/{instance}/users", sqlAdminHandler.ListUsers)
+	mux.HandleFunc("POST /sql/v1beta4/projects/{project}/instances/{instance}/users", sqlAdminHandler.CreateUser)
+	mux.HandleFunc("PUT /sql/v1beta4/projects/{project}/instances/{instance}/users", sqlAdminHandler.UpdateUser)
+	mux.HandleFunc("DELETE /sql/v1beta4/projects/{project}/instances/{instance}/users", sqlAdminHandler.DeleteUser)
+
+	// Operation operations
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/operations", sqlAdminHandler.ListOperations)
+	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/operations/{operation}", sqlAdminHandler.GetOperation)
 
 	return mux
 }

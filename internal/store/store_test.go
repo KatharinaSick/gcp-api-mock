@@ -3,6 +3,7 @@ package store
 import (
 	"testing"
 
+	"github.com/ksick/gcp-api-mock/internal/sqladmin"
 	"github.com/ksick/gcp-api-mock/internal/storage"
 )
 
@@ -368,5 +369,539 @@ func TestComputeCRC32C(t *testing.T) {
 	// CRC32C should be non-empty base64 string
 	if checksum == "" {
 		t.Error("CRC32C checksum is empty")
+	}
+}
+
+// =============================================================================
+// Cloud SQL Instance Tests
+// =============================================================================
+
+func TestStore_CreateSQLInstance(t *testing.T) {
+	tests := []struct {
+		name    string
+		req     *sqladmin.InstanceInsertRequest
+		wantErr bool
+	}{
+		{
+			name:    "create simple instance",
+			req:     &sqladmin.InstanceInsertRequest{Name: "test-instance"},
+			wantErr: false,
+		},
+		{
+			name: "create instance with all options",
+			req: &sqladmin.InstanceInsertRequest{
+				Name:            "test-instance-2",
+				DatabaseVersion: "POSTGRES_15",
+				Region:          "europe-west1",
+				Settings: &sqladmin.Settings{
+					Tier:             "db-custom-2-4096",
+					AvailabilityType: "REGIONAL",
+				},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := New()
+			instance, op, err := s.CreateSQLInstance(tt.req)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("CreateSQLInstance() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if err == nil {
+				if instance.Name != tt.req.Name {
+					t.Errorf("instance name = %s, want %s", instance.Name, tt.req.Name)
+				}
+				if instance.Kind != "sql#instance" {
+					t.Errorf("instance kind = %s, want sql#instance", instance.Kind)
+				}
+				if op.Kind != "sql#operation" {
+					t.Errorf("operation kind = %s, want sql#operation", op.Kind)
+				}
+				if op.OperationType != "CREATE" {
+					t.Errorf("operation type = %s, want CREATE", op.OperationType)
+				}
+			}
+		})
+	}
+}
+
+func TestStore_CreateSQLInstance_DuplicateError(t *testing.T) {
+	s := New()
+	req := &sqladmin.InstanceInsertRequest{Name: "test-instance"}
+
+	_, _, err := s.CreateSQLInstance(req)
+	if err != nil {
+		t.Fatalf("first CreateSQLInstance() failed: %v", err)
+	}
+
+	_, _, err = s.CreateSQLInstance(req)
+	if err == nil {
+		t.Error("expected error for duplicate instance, got nil")
+	}
+}
+
+func TestStore_GetSQLInstance(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	instance := s.GetSQLInstance("test-instance")
+	if instance == nil {
+		t.Error("GetSQLInstance() returned nil for existing instance")
+	}
+
+	instance = s.GetSQLInstance("non-existent")
+	if instance != nil {
+		t.Error("GetSQLInstance() returned non-nil for non-existent instance")
+	}
+}
+
+func TestStore_ListSQLInstances(t *testing.T) {
+	s := New()
+
+	// Empty list
+	instances := s.ListSQLInstances()
+	if len(instances) != 0 {
+		t.Errorf("expected 0 instances, got %d", len(instances))
+	}
+
+	// Create instances
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "instance-b"})
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "instance-a"})
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "instance-c"})
+
+	instances = s.ListSQLInstances()
+	if len(instances) != 3 {
+		t.Errorf("expected 3 instances, got %d", len(instances))
+	}
+
+	// Should be sorted by name
+	if instances[0].Name != "instance-a" || instances[1].Name != "instance-b" || instances[2].Name != "instance-c" {
+		t.Error("instances are not sorted by name")
+	}
+}
+
+func TestStore_UpdateSQLInstance(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	updated, op, err := s.UpdateSQLInstance("test-instance", &sqladmin.InstancePatchRequest{
+		Settings: &sqladmin.Settings{
+			Tier:       "db-n1-standard-2",
+			UserLabels: map[string]string{"env": "test"},
+		},
+	})
+
+	if err != nil {
+		t.Fatalf("UpdateSQLInstance() error: %v", err)
+	}
+
+	if updated.Settings.Tier != "db-n1-standard-2" {
+		t.Errorf("tier = %s, want db-n1-standard-2", updated.Settings.Tier)
+	}
+
+	if updated.Settings.UserLabels["env"] != "test" {
+		t.Error("labels not updated correctly")
+	}
+
+	if op.OperationType != "UPDATE" {
+		t.Errorf("operation type = %s, want UPDATE", op.OperationType)
+	}
+
+	// Update non-existent instance
+	_, _, err = s.UpdateSQLInstance("non-existent", &sqladmin.InstancePatchRequest{})
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_DeleteSQLInstance(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	op, err := s.DeleteSQLInstance("test-instance")
+	if err != nil {
+		t.Fatalf("DeleteSQLInstance() error: %v", err)
+	}
+
+	if op.OperationType != "DELETE" {
+		t.Errorf("operation type = %s, want DELETE", op.OperationType)
+	}
+
+	if s.GetSQLInstance("test-instance") != nil {
+		t.Error("instance still exists after delete")
+	}
+
+	// Delete non-existent instance
+	_, err = s.DeleteSQLInstance("non-existent")
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_DeleteSQLInstance_DeletionProtection(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{
+		Name: "protected-instance",
+		Settings: &sqladmin.Settings{
+			DeletionProtectionEnabled: true,
+		},
+	})
+
+	_, err := s.DeleteSQLInstance("protected-instance")
+	if err == nil {
+		t.Error("expected error when deleting protected instance")
+	}
+}
+
+// =============================================================================
+// Cloud SQL Database Tests
+// =============================================================================
+
+func TestStore_CreateSQLDatabase(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	db, op, err := s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{
+		Name:      "mydb",
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_general_ci",
+	})
+
+	if err != nil {
+		t.Fatalf("CreateSQLDatabase() error: %v", err)
+	}
+
+	if db.Name != "mydb" {
+		t.Errorf("database name = %s, want mydb", db.Name)
+	}
+
+	if db.Charset != "utf8mb4" {
+		t.Errorf("charset = %s, want utf8mb4", db.Charset)
+	}
+
+	if op.OperationType != "CREATE_DATABASE" {
+		t.Errorf("operation type = %s, want CREATE_DATABASE", op.OperationType)
+	}
+}
+
+func TestStore_CreateSQLDatabase_InstanceNotFound(t *testing.T) {
+	s := New()
+
+	_, _, err := s.CreateSQLDatabase("non-existent", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_CreateSQLDatabase_Duplicate(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+
+	_, _, err := s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+	if err == nil {
+		t.Error("expected error for duplicate database")
+	}
+}
+
+func TestStore_GetSQLDatabase(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+
+	db := s.GetSQLDatabase("test-instance", "mydb")
+	if db == nil {
+		t.Error("GetSQLDatabase() returned nil for existing database")
+	}
+
+	db = s.GetSQLDatabase("test-instance", "non-existent")
+	if db != nil {
+		t.Error("GetSQLDatabase() returned non-nil for non-existent database")
+	}
+
+	db = s.GetSQLDatabase("non-existent", "mydb")
+	if db != nil {
+		t.Error("GetSQLDatabase() returned non-nil for non-existent instance")
+	}
+}
+
+func TestStore_ListSQLDatabases(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "db1"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "db2"})
+
+	databases, err := s.ListSQLDatabases("test-instance")
+	if err != nil {
+		t.Fatalf("ListSQLDatabases() error: %v", err)
+	}
+
+	// Should include default 'mysql' database plus our two
+	if len(databases) != 3 {
+		t.Errorf("expected 3 databases, got %d", len(databases))
+	}
+
+	// List from non-existent instance
+	_, err = s.ListSQLDatabases("non-existent")
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_UpdateSQLDatabase(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+
+	updated, op, err := s.UpdateSQLDatabase("test-instance", "mydb", &sqladmin.DatabasePatchRequest{
+		Charset:   "utf8mb4",
+		Collation: "utf8mb4_unicode_ci",
+	})
+
+	if err != nil {
+		t.Fatalf("UpdateSQLDatabase() error: %v", err)
+	}
+
+	if updated.Charset != "utf8mb4" {
+		t.Errorf("charset = %s, want utf8mb4", updated.Charset)
+	}
+
+	if updated.Collation != "utf8mb4_unicode_ci" {
+		t.Errorf("collation = %s, want utf8mb4_unicode_ci", updated.Collation)
+	}
+
+	if op.OperationType != "UPDATE_DATABASE" {
+		t.Errorf("operation type = %s, want UPDATE_DATABASE", op.OperationType)
+	}
+}
+
+func TestStore_DeleteSQLDatabase(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLDatabase("test-instance", &sqladmin.DatabaseInsertRequest{Name: "mydb"})
+
+	op, err := s.DeleteSQLDatabase("test-instance", "mydb")
+	if err != nil {
+		t.Fatalf("DeleteSQLDatabase() error: %v", err)
+	}
+
+	if op.OperationType != "DELETE_DATABASE" {
+		t.Errorf("operation type = %s, want DELETE_DATABASE", op.OperationType)
+	}
+
+	if s.GetSQLDatabase("test-instance", "mydb") != nil {
+		t.Error("database still exists after delete")
+	}
+}
+
+// =============================================================================
+// Cloud SQL User Tests
+// =============================================================================
+
+func TestStore_CreateSQLUser(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	user, op, err := s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{
+		Name: "testuser",
+		Host: "%",
+	})
+
+	if err != nil {
+		t.Fatalf("CreateSQLUser() error: %v", err)
+	}
+
+	if user.Name != "testuser" {
+		t.Errorf("user name = %s, want testuser", user.Name)
+	}
+
+	if user.Host != "%" {
+		t.Errorf("host = %s, want %%", user.Host)
+	}
+
+	if op.OperationType != "CREATE_USER" {
+		t.Errorf("operation type = %s, want CREATE_USER", op.OperationType)
+	}
+}
+
+func TestStore_CreateSQLUser_InstanceNotFound(t *testing.T) {
+	s := New()
+
+	_, _, err := s.CreateSQLUser("non-existent", &sqladmin.UserInsertRequest{Name: "testuser"})
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_CreateSQLUser_Duplicate(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "testuser", Host: "%"})
+
+	_, _, err := s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "testuser", Host: "%"})
+	if err == nil {
+		t.Error("expected error for duplicate user")
+	}
+}
+
+func TestStore_GetSQLUser(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "testuser", Host: "%"})
+
+	user := s.GetSQLUser("test-instance", "testuser", "%")
+	if user == nil {
+		t.Error("GetSQLUser() returned nil for existing user")
+	}
+
+	user = s.GetSQLUser("test-instance", "testuser", "localhost")
+	if user != nil {
+		t.Error("GetSQLUser() returned non-nil for non-existent user with different host")
+	}
+
+	user = s.GetSQLUser("non-existent", "testuser", "%")
+	if user != nil {
+		t.Error("GetSQLUser() returned non-nil for non-existent instance")
+	}
+}
+
+func TestStore_ListSQLUsers(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "user1", Host: "%"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "user2", Host: "%"})
+
+	users, err := s.ListSQLUsers("test-instance")
+	if err != nil {
+		t.Fatalf("ListSQLUsers() error: %v", err)
+	}
+
+	// Should include default 'root' user plus our two
+	if len(users) != 3 {
+		t.Errorf("expected 3 users, got %d", len(users))
+	}
+
+	// List from non-existent instance
+	_, err = s.ListSQLUsers("non-existent")
+	if err == nil {
+		t.Error("expected error for non-existent instance")
+	}
+}
+
+func TestStore_UpdateSQLUser(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "testuser", Host: "%"})
+
+	updated, op, err := s.UpdateSQLUser("test-instance", "testuser", "%", &sqladmin.UserUpdateRequest{
+		Host: "localhost",
+	})
+
+	if err != nil {
+		t.Fatalf("UpdateSQLUser() error: %v", err)
+	}
+
+	if updated.Host != "localhost" {
+		t.Errorf("host = %s, want localhost", updated.Host)
+	}
+
+	if op.OperationType != "UPDATE_USER" {
+		t.Errorf("operation type = %s, want UPDATE_USER", op.OperationType)
+	}
+
+	// Old key should not exist
+	if s.GetSQLUser("test-instance", "testuser", "%") != nil {
+		t.Error("old user key still exists after host change")
+	}
+
+	// New key should exist
+	if s.GetSQLUser("test-instance", "testuser", "localhost") == nil {
+		t.Error("new user key does not exist after host change")
+	}
+}
+
+func TestStore_DeleteSQLUser(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+	_, _, _ = s.CreateSQLUser("test-instance", &sqladmin.UserInsertRequest{Name: "testuser", Host: "%"})
+
+	op, err := s.DeleteSQLUser("test-instance", "testuser", "%")
+	if err != nil {
+		t.Fatalf("DeleteSQLUser() error: %v", err)
+	}
+
+	if op.OperationType != "DELETE_USER" {
+		t.Errorf("operation type = %s, want DELETE_USER", op.OperationType)
+	}
+
+	if s.GetSQLUser("test-instance", "testuser", "%") != nil {
+		t.Error("user still exists after delete")
+	}
+}
+
+// =============================================================================
+// Cloud SQL Operation Tests
+// =============================================================================
+
+func TestStore_GetSQLOperation(t *testing.T) {
+	s := New()
+	_, op, _ := s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	retrieved := s.GetSQLOperation(op.Name)
+	if retrieved == nil {
+		t.Error("GetSQLOperation() returned nil for existing operation")
+	}
+
+	if retrieved.Name != op.Name {
+		t.Errorf("operation name = %s, want %s", retrieved.Name, op.Name)
+	}
+
+	retrieved = s.GetSQLOperation("non-existent")
+	if retrieved != nil {
+		t.Error("GetSQLOperation() returned non-nil for non-existent operation")
+	}
+}
+
+func TestStore_ListSQLOperations(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "instance-1"})
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "instance-2"})
+
+	// List all operations
+	operations := s.ListSQLOperations("")
+	if len(operations) != 2 {
+		t.Errorf("expected 2 operations, got %d", len(operations))
+	}
+
+	// List operations for specific instance
+	operations = s.ListSQLOperations("instance-1")
+	if len(operations) != 1 {
+		t.Errorf("expected 1 operation for instance-1, got %d", len(operations))
+	}
+
+	if operations[0].TargetId != "instance-1" {
+		t.Errorf("target id = %s, want instance-1", operations[0].TargetId)
+	}
+}
+
+func TestStore_SQLInstance_CreatesDefaultDatabaseAndUser(t *testing.T) {
+	s := New()
+	_, _, _ = s.CreateSQLInstance(&sqladmin.InstanceInsertRequest{Name: "test-instance"})
+
+	// Check default database
+	db := s.GetSQLDatabase("test-instance", "mysql")
+	if db == nil {
+		t.Error("default mysql database was not created")
+	}
+
+	// Check default root user
+	user := s.GetSQLUser("test-instance", "root", "%")
+	if user == nil {
+		t.Error("default root user was not created")
 	}
 }
