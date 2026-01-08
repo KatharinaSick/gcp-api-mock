@@ -1,0 +1,40 @@
+{{if gt (len .) 0}}
+<table class="gcp-mock-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Database Version</th>
+            <th>Region</th>
+            <th>Tier</th>
+            <th>State</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .}}
+        <tr>
+            <td>{{.Name}}</td>
+            <td>{{.DatabaseVersion}}</td>
+            <td>{{.Region}}</td>
+            <td>{{if .Settings}}{{.Settings.Tier}}{{else}}-{{end}}</td>
+            <td>
+                <span class="gcp-mock-status {{if eq .State "RUNNABLE"}}gcp-mock-status-running{{else if eq .State "STOPPED"}}gcp-mock-status-stopped{{else}}gcp-mock-status-pending{{end}}">
+                    {{.State}}
+                </span>
+            </td>
+            <td class="gcp-mock-table-actions">
+                <button class="gcp-mock-btn gcp-mock-btn-sm gcp-mock-btn-danger"
+                        onclick="gcpMockConfirmDelete('SQL Instance', '{{.Name}}', '/ui/sql/instances/{{.Name}}', '#gcp-mock-sql-list')">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<div class="gcp-mock-table-empty">
+    No SQL instances found. Create one to get started.
+</div>
+{{end}}
+

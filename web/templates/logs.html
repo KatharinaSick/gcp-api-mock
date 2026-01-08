@@ -1,0 +1,19 @@
+{{if gt (len .) 0}}
+{{range .}}
+<div class="gcp-mock-log-entry">
+    <div class="gcp-mock-log-entry-header">
+        <span class="gcp-mock-log-entry-method gcp-mock-log-entry-method-{{.MethodLower}}">{{.Method}}</span>
+        <span class="gcp-mock-log-entry-time">{{.Timestamp}}</span>
+    </div>
+    <div class="gcp-mock-log-entry-path">{{.Path}}</div>
+    <div class="gcp-mock-log-entry-status {{if .Success}}gcp-mock-log-entry-status-success{{else}}gcp-mock-log-entry-status-error{{end}}">
+        Status: {{.Status}}
+    </div>
+</div>
+{{end}}
+{{else}}
+<div class="gcp-mock-log-empty">
+    No requests logged yet...
+</div>
+{{end}}
+

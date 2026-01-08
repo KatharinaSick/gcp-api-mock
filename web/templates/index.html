@@ -8,35 +8,247 @@
     <link rel="stylesheet" href="/static/css/style.css">
 </head>
 <body>
-    <header class="gcp-mock-header">
-        <div class="gcp-mock-header-logo">
-            <span class="gcp-mock-header-title">GCP API Mock</span>
-        </div>
-        <nav class="gcp-mock-header-nav">
-            <span class="gcp-mock-header-env">{{.Environment}}</span>
-        </nav>
-    </header>
-
-    <main class="gcp-mock-main">
-        <div class="gcp-mock-welcome">
-            <h1>Welcome to GCP API Mock</h1>
-            <p>A lightweight mock for GCP APIs - test your Infrastructure as Code configs without a real GCP account.</p>
-
-            <div class="gcp-mock-services">
-                <h2>Available Services</h2>
-                <ul class="gcp-mock-service-list">
-                    <li class="gcp-mock-service-item gcp-mock-service-coming-soon">
-                        <span class="gcp-mock-service-name">Cloud Storage</span>
-                        <span class="gcp-mock-service-status">Coming Soon</span>
-                    </li>
-                </ul>
+    <div class="gcp-mock-app">
+        <header class="gcp-mock-header">
+            <div class="gcp-mock-header-logo">
+                <span class="gcp-mock-header-title gcp-mock-glow">GCP API MOCK</span>
+                <span class="gcp-mock-header-mock-badge">MOCK</span>
             </div>
-        </div>
-    </main>
+            <nav class="gcp-mock-header-nav">
+                <span class="gcp-mock-header-env">{{.Environment}}</span>
+                <span class="gcp-mock-header-time" id="gcp-mock-clock"></span>
+            </nav>
+        </header>
 
-    <footer class="gcp-mock-footer">
-        <p>GCP API Mock - For testing purposes only</p>
-    </footer>
+        <main class="gcp-mock-main">
+            <!-- Left Panel: Resources -->
+            <div class="gcp-mock-resources-panel">
+                <div class="gcp-mock-tabs">
+                    <button class="gcp-mock-tab gcp-mock-tab-active" data-tab="storage" onclick="gcpMockSwitchTab('storage')">
+                        ▸ Cloud Storage
+                    </button>
+                    <button class="gcp-mock-tab" data-tab="sql" onclick="gcpMockSwitchTab('sql')">
+                        ▸ Cloud SQL
+                    </button>
+                </div>
+
+                <div class="gcp-mock-tab-content">
+                    <!-- Cloud Storage Tab -->
+                    <div id="gcp-mock-tab-storage" class="gcp-mock-tab-pane gcp-mock-tab-pane-active">
+                        <div class="gcp-mock-panel-header">
+                            <h2 class="gcp-mock-panel-title">// STORAGE BUCKETS</h2>
+                            <button class="gcp-mock-btn" onclick="gcpMockToggleForm('bucket-form')">+ New Bucket</button>
+                        </div>
+
+                        <!-- Create Bucket Form -->
+                        <div id="gcp-mock-bucket-form" class="gcp-mock-form gcp-mock-form-collapsed">
+                            <form hx-post="/ui/buckets" hx-target="#gcp-mock-bucket-list" hx-swap="innerHTML"
+                                  hx-on::after-request="gcpMockHandleResponse(event, 'Bucket created'); this.reset(); gcpMockHideForm('bucket-form');">
+                                <div class="gcp-mock-form-row">
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Bucket Name</label>
+                                        <input type="text" name="name" class="gcp-mock-form-input" placeholder="my-bucket" required>
+                                    </div>
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Location</label>
+                                        <select name="location" class="gcp-mock-form-select">
+                                            <option value="US">US (Multi-region)</option>
+                                            <option value="EU">EU (Multi-region)</option>
+                                            <option value="us-central1">us-central1</option>
+                                            <option value="us-east1">us-east1</option>
+                                            <option value="europe-west1">europe-west1</option>
+                                        </select>
+                                    </div>
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Storage Class</label>
+                                        <select name="storageClass" class="gcp-mock-form-select">
+                                            <option value="STANDARD">Standard</option>
+                                            <option value="NEARLINE">Nearline</option>
+                                            <option value="COLDLINE">Coldline</option>
+                                            <option value="ARCHIVE">Archive</option>
+                                        </select>
+                                    </div>
+                                    <button type="submit" class="gcp-mock-btn">Create</button>
+                                    <button type="button" class="gcp-mock-btn gcp-mock-btn-danger" onclick="gcpMockHideForm('bucket-form')">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- Bucket List -->
+                        <div class="gcp-mock-table-container">
+                            <div id="gcp-mock-bucket-list" hx-get="/ui/buckets" hx-trigger="load, every 2s" hx-swap="innerHTML">
+                                <div class="gcp-mock-loading">Loading buckets</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cloud SQL Tab -->
+                    <div id="gcp-mock-tab-sql" class="gcp-mock-tab-pane">
+                        <div class="gcp-mock-panel-header">
+                            <h2 class="gcp-mock-panel-title">// SQL INSTANCES</h2>
+                            <button class="gcp-mock-btn" onclick="gcpMockToggleForm('sql-form')">+ New Instance</button>
+                        </div>
+
+                        <!-- Create SQL Instance Form -->
+                        <div id="gcp-mock-sql-form" class="gcp-mock-form gcp-mock-form-collapsed">
+                            <form hx-post="/ui/sql/instances" hx-target="#gcp-mock-sql-list" hx-swap="innerHTML"
+                                  hx-on::after-request="gcpMockHandleResponse(event, 'SQL instance created'); this.reset(); gcpMockHideForm('sql-form');">
+                                <div class="gcp-mock-form-row">
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Instance Name</label>
+                                        <input type="text" name="name" class="gcp-mock-form-input" placeholder="my-instance" required>
+                                    </div>
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Database Version</label>
+                                        <select name="databaseVersion" class="gcp-mock-form-select">
+                                            <option value="MYSQL_8_0">MySQL 8.0</option>
+                                            <option value="MYSQL_5_7">MySQL 5.7</option>
+                                            <option value="POSTGRES_15">PostgreSQL 15</option>
+                                            <option value="POSTGRES_14">PostgreSQL 14</option>
+                                            <option value="SQLSERVER_2019_STANDARD">SQL Server 2019</option>
+                                        </select>
+                                    </div>
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Region</label>
+                                        <select name="region" class="gcp-mock-form-select">
+                                            <option value="us-central1">us-central1</option>
+                                            <option value="us-east1">us-east1</option>
+                                            <option value="europe-west1">europe-west1</option>
+                                            <option value="asia-east1">asia-east1</option>
+                                        </select>
+                                    </div>
+                                    <div class="gcp-mock-form-group">
+                                        <label class="gcp-mock-form-label">Tier</label>
+                                        <select name="tier" class="gcp-mock-form-select">
+                                            <option value="db-f1-micro">db-f1-micro (Shared)</option>
+                                            <option value="db-g1-small">db-g1-small (Shared)</option>
+                                            <option value="db-n1-standard-1">db-n1-standard-1</option>
+                                            <option value="db-n1-standard-2">db-n1-standard-2</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="gcp-mock-form-row">
+                                    <button type="submit" class="gcp-mock-btn">Create Instance</button>
+                                    <button type="button" class="gcp-mock-btn gcp-mock-btn-danger" onclick="gcpMockHideForm('sql-form')">Cancel</button>
+                                </div>
+                            </form>
+                        </div>
+
+                        <!-- SQL Instance List -->
+                        <div class="gcp-mock-table-container">
+                            <div id="gcp-mock-sql-list" hx-get="/ui/sql/instances" hx-trigger="load, every 2s" hx-swap="innerHTML">
+                                <div class="gcp-mock-loading">Loading instances</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Request Log -->
+            <div class="gcp-mock-log-panel">
+                <div class="gcp-mock-log-header">
+                    <h3 class="gcp-mock-log-title">// REQUEST LOG</h3>
+                    <button class="gcp-mock-btn gcp-mock-btn-sm gcp-mock-btn-danger"
+                            hx-delete="/ui/logs"
+                            hx-target="#gcp-mock-log-list"
+                            hx-swap="innerHTML">Clear</button>
+                </div>
+                <div class="gcp-mock-log-content">
+                    <div id="gcp-mock-log-list" hx-get="/ui/logs" hx-trigger="load, every 2s" hx-swap="innerHTML">
+                        <div class="gcp-mock-log-empty">No requests yet...</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="gcp-mock-footer">
+            <div class="gcp-mock-footer-status">
+                <span class="gcp-mock-footer-status-indicator"></span>
+                <span>Mock Server Online</span>
+            </div>
+            <span>GCP API Mock v1.0 - For Testing Purposes Only</span>
+        </footer>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="gcp-mock-toast-container" class="gcp-mock-toast-container"></div>
+
+    <script>
+        // Clock update
+        function gcpMockUpdateClock() {
+            const now = new Date();
+            const time = now.toLocaleTimeString('en-US', { hour12: false });
+            const clockEl = document.getElementById('gcp-mock-clock');
+            if (clockEl) clockEl.textContent = time;
+        }
+        setInterval(gcpMockUpdateClock, 1000);
+        gcpMockUpdateClock();
+
+        // Tab switching
+        function gcpMockSwitchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.gcp-mock-tab').forEach(tab => {
+                tab.classList.remove('gcp-mock-tab-active');
+                if (tab.dataset.tab === tabName) {
+                    tab.classList.add('gcp-mock-tab-active');
+                }
+            });
+
+            // Update tab panes
+            document.querySelectorAll('.gcp-mock-tab-pane').forEach(pane => {
+                pane.classList.remove('gcp-mock-tab-pane-active');
+            });
+            const activePane = document.getElementById('gcp-mock-tab-' + tabName);
+            if (activePane) {
+                activePane.classList.add('gcp-mock-tab-pane-active');
+            }
+        }
+
+        // Form toggle
+        function gcpMockToggleForm(formId) {
+            const form = document.getElementById('gcp-mock-' + formId);
+            if (form) {
+                form.classList.toggle('gcp-mock-form-collapsed');
+            }
+        }
+
+        function gcpMockHideForm(formId) {
+            const form = document.getElementById('gcp-mock-' + formId);
+            if (form) {
+                form.classList.add('gcp-mock-form-collapsed');
+            }
+        }
+
+        // Toast notifications
+        function gcpMockShowToast(message, type = 'success') {
+            const container = document.getElementById('gcp-mock-toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'gcp-mock-toast gcp-mock-toast-' + type;
+            toast.textContent = '> ' + message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.remove();
+            }, 3000);
+        }
+
+        // Handle HTMX response
+        function gcpMockHandleResponse(event, successMessage) {
+            if (event.detail.successful) {
+                gcpMockShowToast(successMessage, 'success');
+            } else {
+                gcpMockShowToast('Operation failed', 'error');
+            }
+        }
+
+        // Confirm delete
+        function gcpMockConfirmDelete(resourceType, resourceName, deleteUrl, targetId) {
+            if (confirm('Are you sure you want to delete ' + resourceType + ' "' + resourceName + '"?')) {
+                htmx.ajax('DELETE', deleteUrl, {target: targetId, swap: 'innerHTML'});
+                gcpMockShowToast(resourceType + ' deleted', 'success');
+            }
+        }
+    </script>
 </body>
 </html>
 

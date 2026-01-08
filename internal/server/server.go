@@ -16,11 +16,12 @@ func New(cfg *config.Config) *http.Server {
 	// Initialize in-memory store
 	dataStore := store.New()
 
-	// Create router with all routes
-	mux := newRouter(cfg, dataStore)
+	// Create router with all routes and get the request logger
+	mux, requestLogger := newRouter(cfg, dataStore)
 
 	// Apply middleware stack
 	var h http.Handler = mux
+	h = middleware.APILogger(requestLogger.Add)(h) // Log API requests to UI
 	h = middleware.Logger(h)
 	h = middleware.Recovery(h)
 	h = middleware.RequestID(h)
@@ -35,8 +36,12 @@ func New(cfg *config.Config) *http.Server {
 }
 
 // newRouter creates and configures the HTTP router with all application routes.
-func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
+// Returns the mux and request logger for middleware integration.
+func newRouter(cfg *config.Config, dataStore *store.Store) (*http.ServeMux, *handler.RequestLogger) {
 	mux := http.NewServeMux()
+
+	// Create request logger for UI
+	requestLogger := handler.NewRequestLogger(100)
 
 	// Create handlers
 	healthHandler := handler.NewHealth()
@@ -51,8 +56,18 @@ func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 
 	// UI routes (HTMX templates)
-	uiHandler := handler.NewUI(cfg)
+	uiHandler := handler.NewUI(cfg, dataStore, requestLogger)
 	mux.HandleFunc("GET /", uiHandler.Index)
+
+	// UI API routes for HTMX partials
+	mux.HandleFunc("GET /ui/buckets", uiHandler.ListBucketsUI)
+	mux.HandleFunc("POST /ui/buckets", uiHandler.CreateBucketUI)
+	mux.HandleFunc("DELETE /ui/buckets/{bucket}", uiHandler.DeleteBucketUI)
+	mux.HandleFunc("GET /ui/sql/instances", uiHandler.ListSQLInstancesUI)
+	mux.HandleFunc("POST /ui/sql/instances", uiHandler.CreateSQLInstanceUI)
+	mux.HandleFunc("DELETE /ui/sql/instances/{instance}", uiHandler.DeleteSQLInstanceUI)
+	mux.HandleFunc("GET /ui/logs", uiHandler.GetLogsUI)
+	mux.HandleFunc("DELETE /ui/logs", uiHandler.ClearLogsUI)
 
 	// Cloud Storage API routes
 	// Bucket operations
@@ -100,5 +115,5 @@ func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
 	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/operations", sqlAdminHandler.ListOperations)
 	mux.HandleFunc("GET /sql/v1beta4/projects/{project}/operations/{operation}", sqlAdminHandler.GetOperation)
 
-	return mux
+	return mux, requestLogger
 }

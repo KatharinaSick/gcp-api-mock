@@ -1,22 +1,35 @@
-/* GCP API Mock - Base Styles */
+/* GCP API Mock - Retro Terminal Style */
+
+@import url('https://fonts.googleapis.com/css2?family=VT323&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 :root {
-    --gcp-mock-color-primary: #4285f4;
-    --gcp-mock-color-secondary: #34a853;
-    --gcp-mock-color-background: #f8f9fa;
-    --gcp-mock-color-surface: #ffffff;
-    --gcp-mock-color-text: #202124;
-    --gcp-mock-color-text-secondary: #5f6368;
-    --gcp-mock-color-border: #dadce0;
-    --gcp-mock-color-warning: #fbbc04;
-    --gcp-mock-color-error: #ea4335;
+    /* Retro terminal colors */
+    --gcp-mock-color-bg-dark: #0a0a0a;
+    --gcp-mock-color-bg-panel: #121212;
+    --gcp-mock-color-bg-input: #1a1a1a;
+    --gcp-mock-color-border: #2a2a2a;
+    --gcp-mock-color-border-bright: #3a3a3a;
+    --gcp-mock-color-green: #00ff00;
+    --gcp-mock-color-green-dim: #00cc00;
+    --gcp-mock-color-green-dark: #003300;
+    --gcp-mock-color-amber: #ffb000;
+    --gcp-mock-color-amber-dim: #cc8800;
+    --gcp-mock-color-cyan: #00ffff;
+    --gcp-mock-color-red: #ff3333;
+    --gcp-mock-color-text: #00ff00;
+    --gcp-mock-color-text-dim: #009900;
+    --gcp-mock-color-text-muted: #666666;
+
+    /* Spacing */
     --gcp-mock-spacing-xs: 4px;
     --gcp-mock-spacing-sm: 8px;
     --gcp-mock-spacing-md: 16px;
     --gcp-mock-spacing-lg: 24px;
     --gcp-mock-spacing-xl: 32px;
-    --gcp-mock-border-radius: 4px;
-    --gcp-mock-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+
+    /* Font */
+    --gcp-mock-font-mono: 'JetBrains Mono', 'Courier New', monospace;
+    --gcp-mock-font-retro: 'VT323', monospace;
 }
 
 * {
@@ -25,37 +38,85 @@
     padding: 0;
 }
 
+html, body {
+    height: 100%;
+}
+
 body {
-    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-    background-color: var(--gcp-mock-color-background);
+    font-family: var(--gcp-mock-font-mono);
+    background-color: var(--gcp-mock-color-bg-dark);
     color: var(--gcp-mock-color-text);
-    line-height: 1.5;
-    min-height: 100vh;
+    line-height: 1.4;
+    font-size: 14px;
+}
+
+/* Scanline effect */
+body::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.15) 0px,
+        rgba(0, 0, 0, 0.15) 1px,
+        transparent 1px,
+        transparent 2px
+    );
+    z-index: 9999;
+}
+
+/* CRT glow effect on text */
+.gcp-mock-glow {
+    text-shadow: 0 0 5px var(--gcp-mock-color-green), 0 0 10px var(--gcp-mock-color-green-dim);
+}
+
+/* Layout */
+.gcp-mock-app {
     display: flex;
     flex-direction: column;
+    height: 100vh;
 }
 
 /* Header */
 .gcp-mock-header {
-    background-color: var(--gcp-mock-color-surface);
-    border-bottom: 1px solid var(--gcp-mock-color-border);
-    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
+    background-color: var(--gcp-mock-color-bg-panel);
+    border-bottom: 2px solid var(--gcp-mock-color-green);
+    padding: var(--gcp-mock-spacing-md);
     display: flex;
     justify-content: space-between;
     align-items: center;
-    box-shadow: var(--gcp-mock-shadow);
 }
 
 .gcp-mock-header-logo {
     display: flex;
     align-items: center;
-    gap: var(--gcp-mock-spacing-sm);
+    gap: var(--gcp-mock-spacing-md);
 }
 
 .gcp-mock-header-title {
-    font-size: 1.25rem;
-    font-weight: 500;
-    color: var(--gcp-mock-color-text);
+    font-family: var(--gcp-mock-font-retro);
+    font-size: 2rem;
+    color: var(--gcp-mock-color-green);
+    text-shadow: 0 0 4px var(--gcp-mock-color-green-dim);
+    letter-spacing: 2px;
+}
+
+.gcp-mock-header-mock-badge {
+    background-color: var(--gcp-mock-color-red);
+    color: #000;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    animation: gcp-mock-blink 1s step-end infinite;
+}
+
+@keyframes gcp-mock-blink {
+    50% { opacity: 0.7; }
 }
 
 .gcp-mock-header-nav {
@@ -65,91 +126,478 @@ body {
 }
 
 .gcp-mock-header-env {
-    background-color: var(--gcp-mock-color-primary);
-    color: white;
+    border: 1px solid var(--gcp-mock-color-amber);
+    color: var(--gcp-mock-color-amber);
     padding: var(--gcp-mock-spacing-xs) var(--gcp-mock-spacing-sm);
-    border-radius: var(--gcp-mock-border-radius);
     font-size: 0.75rem;
     text-transform: uppercase;
+}
+
+.gcp-mock-header-time {
+    color: var(--gcp-mock-color-text-dim);
+    font-size: 0.875rem;
 }
 
 /* Main Content */
 .gcp-mock-main {
     flex: 1;
-    padding: var(--gcp-mock-spacing-xl);
-    max-width: 1200px;
-    margin: 0 auto;
-    width: 100%;
+    display: flex;
+    overflow: hidden;
 }
 
-.gcp-mock-welcome {
-    background-color: var(--gcp-mock-color-surface);
-    border-radius: var(--gcp-mock-border-radius);
-    padding: var(--gcp-mock-spacing-xl);
-    box-shadow: var(--gcp-mock-shadow);
+/* Left Panel - Resources */
+.gcp-mock-resources-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-right: 1px solid var(--gcp-mock-color-border);
 }
 
-.gcp-mock-welcome h1 {
-    font-size: 1.75rem;
-    font-weight: 400;
-    margin-bottom: var(--gcp-mock-spacing-md);
+/* Tabs */
+.gcp-mock-tabs {
+    display: flex;
+    background-color: var(--gcp-mock-color-bg-panel);
+    border-bottom: 1px solid var(--gcp-mock-color-border);
+}
+
+.gcp-mock-tab {
+    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
+    background: none;
+    border: none;
+    color: var(--gcp-mock-color-text-dim);
+    font-family: var(--gcp-mock-font-mono);
+    font-size: 0.875rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+}
+
+.gcp-mock-tab:hover {
     color: var(--gcp-mock-color-text);
+    background-color: var(--gcp-mock-color-bg-input);
 }
 
-.gcp-mock-welcome p {
-    color: var(--gcp-mock-color-text-secondary);
-    margin-bottom: var(--gcp-mock-spacing-lg);
+.gcp-mock-tab.gcp-mock-tab-active {
+    color: var(--gcp-mock-color-green);
+    border-bottom-color: var(--gcp-mock-color-green);
+    text-shadow: 0 0 2px var(--gcp-mock-color-green);
 }
 
-/* Services */
-.gcp-mock-services {
-    margin-top: var(--gcp-mock-spacing-xl);
+/* Tab Content */
+.gcp-mock-tab-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--gcp-mock-spacing-md);
 }
 
-.gcp-mock-services h2 {
-    font-size: 1.25rem;
-    font-weight: 500;
-    margin-bottom: var(--gcp-mock-spacing-md);
-    color: var(--gcp-mock-color-text);
+.gcp-mock-tab-pane {
+    display: none;
 }
 
-.gcp-mock-service-list {
-    list-style: none;
+.gcp-mock-tab-pane.gcp-mock-tab-pane-active {
+    display: block;
 }
 
-.gcp-mock-service-item {
+/* Panel Header */
+.gcp-mock-panel-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--gcp-mock-spacing-md);
-    border: 1px solid var(--gcp-mock-color-border);
-    border-radius: var(--gcp-mock-border-radius);
-    margin-bottom: var(--gcp-mock-spacing-sm);
+    margin-bottom: var(--gcp-mock-spacing-md);
+    padding-bottom: var(--gcp-mock-spacing-sm);
+    border-bottom: 1px dashed var(--gcp-mock-color-border-bright);
 }
 
-.gcp-mock-service-name {
-    font-weight: 500;
+.gcp-mock-panel-title {
+    font-family: var(--gcp-mock-font-retro);
+    font-size: 1.5rem;
+    color: var(--gcp-mock-color-cyan);
 }
 
-.gcp-mock-service-status {
+/* Buttons */
+.gcp-mock-btn {
+    background-color: transparent;
+    border: 1px solid var(--gcp-mock-color-green);
+    color: var(--gcp-mock-color-green);
+    padding: var(--gcp-mock-spacing-sm) var(--gcp-mock-spacing-md);
+    font-family: var(--gcp-mock-font-mono);
     font-size: 0.875rem;
-    color: var(--gcp-mock-color-text-secondary);
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-.gcp-mock-service-coming-soon .gcp-mock-service-status {
-    background-color: var(--gcp-mock-color-warning);
-    color: var(--gcp-mock-color-text);
+.gcp-mock-btn:hover {
+    background-color: var(--gcp-mock-color-green);
+    color: var(--gcp-mock-color-bg-dark);
+    box-shadow: 0 0 10px var(--gcp-mock-color-green);
+}
+
+.gcp-mock-btn-danger {
+    border-color: var(--gcp-mock-color-red);
+    color: var(--gcp-mock-color-red);
+}
+
+.gcp-mock-btn-danger:hover {
+    background-color: var(--gcp-mock-color-red);
+    color: var(--gcp-mock-color-bg-dark);
+    box-shadow: 0 0 10px var(--gcp-mock-color-red);
+}
+
+.gcp-mock-btn-sm {
     padding: var(--gcp-mock-spacing-xs) var(--gcp-mock-spacing-sm);
-    border-radius: var(--gcp-mock-border-radius);
+    font-size: 0.75rem;
+}
+
+/* Tables */
+.gcp-mock-table-container {
+    overflow-x: auto;
+}
+
+.gcp-mock-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+}
+
+.gcp-mock-table th {
+    text-align: left;
+    padding: var(--gcp-mock-spacing-sm) var(--gcp-mock-spacing-md);
+    background-color: var(--gcp-mock-color-bg-input);
+    color: var(--gcp-mock-color-amber);
+    border-bottom: 1px solid var(--gcp-mock-color-border-bright);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
+.gcp-mock-table td {
+    padding: var(--gcp-mock-spacing-sm) var(--gcp-mock-spacing-md);
+    border-bottom: 1px solid var(--gcp-mock-color-border);
+    color: var(--gcp-mock-color-text);
+}
+
+.gcp-mock-table tr:hover td {
+    background-color: var(--gcp-mock-color-bg-input);
+}
+
+.gcp-mock-table-empty {
+    text-align: center;
+    padding: var(--gcp-mock-spacing-xl);
+    color: var(--gcp-mock-color-text-muted);
+    font-style: italic;
+}
+
+.gcp-mock-table-actions {
+    display: flex;
+    gap: var(--gcp-mock-spacing-sm);
+}
+
+/* Forms */
+.gcp-mock-form {
+    background-color: var(--gcp-mock-color-bg-panel);
+    border: 1px solid var(--gcp-mock-color-border-bright);
+    padding: var(--gcp-mock-spacing-md);
+    margin-bottom: var(--gcp-mock-spacing-md);
+}
+
+.gcp-mock-form-row {
+    display: flex;
+    gap: var(--gcp-mock-spacing-md);
+    margin-bottom: var(--gcp-mock-spacing-md);
+    align-items: flex-end;
+}
+
+.gcp-mock-form-group {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gcp-mock-spacing-xs);
+}
+
+.gcp-mock-form-label {
+    color: var(--gcp-mock-color-text-dim);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+.gcp-mock-form-input,
+.gcp-mock-form-select {
+    background-color: var(--gcp-mock-color-bg-input);
+    border: 1px solid var(--gcp-mock-color-border-bright);
+    color: var(--gcp-mock-color-text);
+    padding: var(--gcp-mock-spacing-sm);
+    font-family: var(--gcp-mock-font-mono);
+    font-size: 0.875rem;
+}
+
+.gcp-mock-form-input:focus,
+.gcp-mock-form-select:focus {
+    outline: none;
+    border-color: var(--gcp-mock-color-green);
+    box-shadow: 0 0 5px var(--gcp-mock-color-green-dark);
+}
+
+.gcp-mock-form-input::placeholder {
+    color: var(--gcp-mock-color-text-muted);
+}
+
+/* Right Panel - Request Log */
+.gcp-mock-log-panel {
+    width: 400px;
+    background-color: var(--gcp-mock-color-bg-panel);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.gcp-mock-log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
+    padding-bottom: calc(var(--gcp-mock-spacing-md) + 1px);
+    border-bottom: 1px solid var(--gcp-mock-color-border);
+    background-color: var(--gcp-mock-color-bg-panel);
+    box-sizing: border-box;
+}
+
+.gcp-mock-log-title {
+    font-family: var(--gcp-mock-font-retro);
+    font-size: 1.25rem;
+    color: var(--gcp-mock-color-amber);
+}
+
+.gcp-mock-log-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--gcp-mock-spacing-sm);
+    font-size: 0.75rem;
+}
+
+.gcp-mock-log-entry {
+    padding: var(--gcp-mock-spacing-sm);
+    border-bottom: 1px solid var(--gcp-mock-color-border);
+    font-family: var(--gcp-mock-font-mono);
+}
+
+.gcp-mock-log-entry:hover {
+    background-color: var(--gcp-mock-color-bg-input);
+}
+
+.gcp-mock-log-entry-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--gcp-mock-spacing-xs);
+}
+
+.gcp-mock-log-entry-method {
+    font-weight: 700;
+    padding: 1px 4px;
+    font-size: 0.7rem;
+}
+
+.gcp-mock-log-entry-method-get {
+    background-color: var(--gcp-mock-color-green-dark);
+    color: var(--gcp-mock-color-green);
+}
+
+.gcp-mock-log-entry-method-post {
+    background-color: #003366;
+    color: #00aaff;
+}
+
+.gcp-mock-log-entry-method-put,
+.gcp-mock-log-entry-method-patch {
+    background-color: #333300;
+    color: var(--gcp-mock-color-amber);
+}
+
+.gcp-mock-log-entry-method-delete {
+    background-color: #330000;
+    color: var(--gcp-mock-color-red);
+}
+
+.gcp-mock-log-entry-time {
+    color: var(--gcp-mock-color-text-muted);
+    font-size: 0.7rem;
+}
+
+.gcp-mock-log-entry-path {
+    color: var(--gcp-mock-color-text-dim);
+    word-break: break-all;
+}
+
+.gcp-mock-log-entry-status {
+    margin-top: var(--gcp-mock-spacing-xs);
+    font-size: 0.7rem;
+}
+
+.gcp-mock-log-entry-status-success {
+    color: var(--gcp-mock-color-green);
+}
+
+.gcp-mock-log-entry-status-error {
+    color: var(--gcp-mock-color-red);
+}
+
+.gcp-mock-log-empty {
+    text-align: center;
+    padding: var(--gcp-mock-spacing-xl);
+    color: var(--gcp-mock-color-text-muted);
+    font-style: italic;
+}
+
+/* Status badges */
+.gcp-mock-status {
+    display: inline-block;
+    padding: 2px 6px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+.gcp-mock-status-running {
+    background-color: var(--gcp-mock-color-green-dark);
+    color: var(--gcp-mock-color-green);
+}
+
+.gcp-mock-status-stopped {
+    background-color: #330000;
+    color: var(--gcp-mock-color-red);
+}
+
+.gcp-mock-status-pending {
+    background-color: #333300;
+    color: var(--gcp-mock-color-amber);
+}
+
+/* Toast notifications */
+.gcp-mock-toast-container {
+    position: fixed;
+    bottom: var(--gcp-mock-spacing-lg);
+    right: var(--gcp-mock-spacing-lg);
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gcp-mock-spacing-sm);
+}
+
+.gcp-mock-toast {
+    background-color: var(--gcp-mock-color-bg-panel);
+    border: 1px solid var(--gcp-mock-color-green);
+    padding: var(--gcp-mock-spacing-md);
+    min-width: 300px;
+    animation: gcp-mock-toast-in 0.3s ease;
+}
+
+.gcp-mock-toast-success {
+    border-color: var(--gcp-mock-color-green);
+    color: var(--gcp-mock-color-green);
+}
+
+.gcp-mock-toast-error {
+    border-color: var(--gcp-mock-color-red);
+    color: var(--gcp-mock-color-red);
+}
+
+@keyframes gcp-mock-toast-in {
+    from {
+        transform: translateX(100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }
 
 /* Footer */
 .gcp-mock-footer {
-    background-color: var(--gcp-mock-color-surface);
+    background-color: var(--gcp-mock-color-bg-panel);
     border-top: 1px solid var(--gcp-mock-color-border);
-    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
-    text-align: center;
-    color: var(--gcp-mock-color-text-secondary);
-    font-size: 0.875rem;
+    padding: var(--gcp-mock-spacing-sm) var(--gcp-mock-spacing-md);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: var(--gcp-mock-color-text-muted);
+}
+
+.gcp-mock-footer-status {
+    display: flex;
+    align-items: center;
+    gap: var(--gcp-mock-spacing-sm);
+}
+
+.gcp-mock-footer-status-indicator {
+    width: 8px;
+    height: 8px;
+    background-color: var(--gcp-mock-color-green);
+    border-radius: 50%;
+    animation: gcp-mock-pulse 2s infinite;
+}
+
+@keyframes gcp-mock-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+/* Loading indicator */
+.gcp-mock-loading {
+    display: inline-block;
+    color: var(--gcp-mock-color-amber);
+}
+
+.gcp-mock-loading::after {
+    content: '...';
+    animation: gcp-mock-dots 1s steps(4, end) infinite;
+}
+
+@keyframes gcp-mock-dots {
+    0%, 20% { content: ''; }
+    40% { content: '.'; }
+    60% { content: '..'; }
+    80%, 100% { content: '...'; }
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--gcp-mock-color-bg-dark);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--gcp-mock-color-border-bright);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--gcp-mock-color-text-muted);
+}
+
+/* HTMX loading state */
+.htmx-request .gcp-mock-loading-indicator {
+    display: inline-block;
+}
+
+.gcp-mock-loading-indicator {
+    display: none;
+}
+
+/* Collapsible forms */
+.gcp-mock-form-collapsed {
+    display: none;
+}
+
+/* Action confirmation */
+.gcp-mock-confirm-delete {
+    background-color: #1a0000;
+    border: 1px solid var(--gcp-mock-color-red);
+    padding: var(--gcp-mock-spacing-sm);
+    margin-top: var(--gcp-mock-spacing-sm);
 }
 
