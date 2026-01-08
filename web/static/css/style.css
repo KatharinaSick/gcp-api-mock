@@ -1,0 +1,155 @@
+/* GCP API Mock - Base Styles */
+
+:root {
+    --gcp-mock-color-primary: #4285f4;
+    --gcp-mock-color-secondary: #34a853;
+    --gcp-mock-color-background: #f8f9fa;
+    --gcp-mock-color-surface: #ffffff;
+    --gcp-mock-color-text: #202124;
+    --gcp-mock-color-text-secondary: #5f6368;
+    --gcp-mock-color-border: #dadce0;
+    --gcp-mock-color-warning: #fbbc04;
+    --gcp-mock-color-error: #ea4335;
+    --gcp-mock-spacing-xs: 4px;
+    --gcp-mock-spacing-sm: 8px;
+    --gcp-mock-spacing-md: 16px;
+    --gcp-mock-spacing-lg: 24px;
+    --gcp-mock-spacing-xl: 32px;
+    --gcp-mock-border-radius: 4px;
+    --gcp-mock-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.3), 0 1px 3px 1px rgba(60, 64, 67, 0.15);
+}
+
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: 'Google Sans', 'Roboto', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background-color: var(--gcp-mock-color-background);
+    color: var(--gcp-mock-color-text);
+    line-height: 1.5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Header */
+.gcp-mock-header {
+    background-color: var(--gcp-mock-color-surface);
+    border-bottom: 1px solid var(--gcp-mock-color-border);
+    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: var(--gcp-mock-shadow);
+}
+
+.gcp-mock-header-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--gcp-mock-spacing-sm);
+}
+
+.gcp-mock-header-title {
+    font-size: 1.25rem;
+    font-weight: 500;
+    color: var(--gcp-mock-color-text);
+}
+
+.gcp-mock-header-nav {
+    display: flex;
+    align-items: center;
+    gap: var(--gcp-mock-spacing-md);
+}
+
+.gcp-mock-header-env {
+    background-color: var(--gcp-mock-color-primary);
+    color: white;
+    padding: var(--gcp-mock-spacing-xs) var(--gcp-mock-spacing-sm);
+    border-radius: var(--gcp-mock-border-radius);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+}
+
+/* Main Content */
+.gcp-mock-main {
+    flex: 1;
+    padding: var(--gcp-mock-spacing-xl);
+    max-width: 1200px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.gcp-mock-welcome {
+    background-color: var(--gcp-mock-color-surface);
+    border-radius: var(--gcp-mock-border-radius);
+    padding: var(--gcp-mock-spacing-xl);
+    box-shadow: var(--gcp-mock-shadow);
+}
+
+.gcp-mock-welcome h1 {
+    font-size: 1.75rem;
+    font-weight: 400;
+    margin-bottom: var(--gcp-mock-spacing-md);
+    color: var(--gcp-mock-color-text);
+}
+
+.gcp-mock-welcome p {
+    color: var(--gcp-mock-color-text-secondary);
+    margin-bottom: var(--gcp-mock-spacing-lg);
+}
+
+/* Services */
+.gcp-mock-services {
+    margin-top: var(--gcp-mock-spacing-xl);
+}
+
+.gcp-mock-services h2 {
+    font-size: 1.25rem;
+    font-weight: 500;
+    margin-bottom: var(--gcp-mock-spacing-md);
+    color: var(--gcp-mock-color-text);
+}
+
+.gcp-mock-service-list {
+    list-style: none;
+}
+
+.gcp-mock-service-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--gcp-mock-spacing-md);
+    border: 1px solid var(--gcp-mock-color-border);
+    border-radius: var(--gcp-mock-border-radius);
+    margin-bottom: var(--gcp-mock-spacing-sm);
+}
+
+.gcp-mock-service-name {
+    font-weight: 500;
+}
+
+.gcp-mock-service-status {
+    font-size: 0.875rem;
+    color: var(--gcp-mock-color-text-secondary);
+}
+
+.gcp-mock-service-coming-soon .gcp-mock-service-status {
+    background-color: var(--gcp-mock-color-warning);
+    color: var(--gcp-mock-color-text);
+    padding: var(--gcp-mock-spacing-xs) var(--gcp-mock-spacing-sm);
+    border-radius: var(--gcp-mock-border-radius);
+}
+
+/* Footer */
+.gcp-mock-footer {
+    background-color: var(--gcp-mock-color-surface);
+    border-top: 1px solid var(--gcp-mock-color-border);
+    padding: var(--gcp-mock-spacing-md) var(--gcp-mock-spacing-lg);
+    text-align: center;
+    color: var(--gcp-mock-color-text-secondary);
+    font-size: 0.875rem;
+}
+

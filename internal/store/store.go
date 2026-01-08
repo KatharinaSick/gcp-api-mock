@@ -1,19 +1,32 @@
+// Package store provides an in-memory data store for the GCP API Mock.
 package store
 
-// Store defines the interface for resource storage
-type Store interface {
-	// Get retrieves a resource by ID
-	Get(id string) (interface{}, bool)
-	
-	// Set stores a resource with the given ID
-	Set(id string, value interface{})
-	
-	// Delete removes a resource by ID
-	Delete(id string) bool
-	
-	// List returns all resources
-	List() []interface{}
-	
-	// Exists checks if a resource exists
-	Exists(id string) bool
+import (
+	"sync"
+)
+
+// Store is the main in-memory data store for all GCP resources.
+// It is safe for concurrent access.
+type Store struct {
+	mu sync.RWMutex
+
+	// Future storage maps will be added here as services are implemented
+	// Example:
+	// buckets map[string]*storage.Bucket
+	// objects map[string]map[string]*storage.Object
+}
+
+// New creates a new empty Store.
+func New() *Store {
+	return &Store{}
+}
+
+// Reset clears all data from the store.
+// Useful for testing and resetting state.
+func (s *Store) Reset() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// Reset all maps when implemented
+	// s.buckets = make(map[string]*storage.Bucket)
 }

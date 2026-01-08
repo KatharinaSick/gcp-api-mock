@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{.Title}}</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <header class="gcp-mock-header">
+        <div class="gcp-mock-header-logo">
+            <span class="gcp-mock-header-title">GCP API Mock</span>
+        </div>
+        <nav class="gcp-mock-header-nav">
+            <span class="gcp-mock-header-env">{{.Environment}}</span>
+        </nav>
+    </header>
+
+    <main class="gcp-mock-main">
+        <div class="gcp-mock-welcome">
+            <h1>Welcome to GCP API Mock</h1>
+            <p>A lightweight mock for GCP APIs - test your Infrastructure as Code configs without a real GCP account.</p>
+
+            <div class="gcp-mock-services">
+                <h2>Available Services</h2>
+                <ul class="gcp-mock-service-list">
+                    <li class="gcp-mock-service-item gcp-mock-service-coming-soon">
+                        <span class="gcp-mock-service-name">Cloud Storage</span>
+                        <span class="gcp-mock-service-status">Coming Soon</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <footer class="gcp-mock-footer">
+        <p>GCP API Mock - For testing purposes only</p>
+    </footer>
+</body>
+</html>
+

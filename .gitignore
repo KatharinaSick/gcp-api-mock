@@ -1,4 +1,5 @@
-# Binaries for programs and plugins
+# Binaries
+bin/
 *.exe
 *.exe~
 *.dll
@@ -8,39 +9,28 @@
 # Test binary, built with `go test -c`
 *.test
 
-# Output of the go coverage tool, specifically when used with LiteIDE
+# Output of the go coverage tool
 *.out
+coverage.html
 
 # Dependency directories
 vendor/
 
-# Go workspace file
-go.work
-
-# IDE and editor directories
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS generated files
+# OS
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
-# Build output
-bin/
-dist/
-
-# Local environment files
+# Local environment
 .env
 .env.local
 
-# Debug files
-debug
-*.log
+# Build artifacts
+dist/
+

@@ -1,38 +1,50 @@
 # Build stage
-FROM golang:1.25-alpine AS builder
+FROM golang:1.23-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.mod ./
+
+# Download dependencies
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o server ./cmd/server
+
+# Runtime stage
+FROM alpine:3.19
 
 WORKDIR /app
 
 # Install ca-certificates for HTTPS requests
 RUN apk --no-cache add ca-certificates
 
-# Copy go mod files first for better caching
-COPY go.mod go.sum ./
-RUN go mod download
+# Create non-root user
+RUN adduser -D -g '' appuser
 
-# Copy source code
-COPY . .
+# Copy binary from builder
+COPY --from=builder /app/server .
 
-# Build the binary
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o gcp-api-mock ./cmd/server
+# Copy web assets
+COPY --from=builder /app/web ./web
 
-# Runtime stage
-FROM scratch
+# Change ownership
+RUN chown -R appuser:appuser /app
 
-# Copy CA certificates for HTTPS
-COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
+# Switch to non-root user
+USER appuser
 
-# Copy the binary
-COPY --from=builder /app/gcp-api-mock /gcp-api-mock
-
-# Expose the default port
+# Expose port
 EXPOSE 8080
 
-# Set default environment variables
-ENV PORT=8080
-ENV PROJECT_ID=playground
-ENV LOG_LEVEL=info
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
-# Run the binary
-ENTRYPOINT ["/gcp-api-mock"]
+# Run the application
+CMD ["./server"]
 
