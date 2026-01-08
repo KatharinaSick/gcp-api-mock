@@ -8,8 +8,8 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/ksick/gcp-api-mock/internal/storage"
-	"github.com/ksick/gcp-api-mock/internal/store"
+	"github.com/katharinasick/gcp-api-mock/internal/storage"
+	"github.com/katharinasick/gcp-api-mock/internal/store"
 )
 
 // Storage handles Cloud Storage API endpoints.

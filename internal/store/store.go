@@ -10,8 +10,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ksick/gcp-api-mock/internal/sqladmin"
-	"github.com/ksick/gcp-api-mock/internal/storage"
+	"github.com/katharinasick/gcp-api-mock/internal/sqladmin"
+	"github.com/katharinasick/gcp-api-mock/internal/storage"
 )
 
 // Store is the main in-memory data store for all GCP resources.

@@ -3,8 +3,8 @@ package store
 import (
 	"testing"
 
-	"github.com/ksick/gcp-api-mock/internal/sqladmin"
-	"github.com/ksick/gcp-api-mock/internal/storage"
+	"github.com/katharinasick/gcp-api-mock/internal/sqladmin"
+	"github.com/katharinasick/gcp-api-mock/internal/storage"
 )
 
 func TestNew(t *testing.T) {

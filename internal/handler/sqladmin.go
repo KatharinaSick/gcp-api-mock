@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/ksick/gcp-api-mock/internal/sqladmin"
-	"github.com/ksick/gcp-api-mock/internal/store"
+	"github.com/katharinasick/gcp-api-mock/internal/sqladmin"
+	"github.com/katharinasick/gcp-api-mock/internal/store"
 )
 
 // SQLAdmin handles Cloud SQL Admin API endpoints.

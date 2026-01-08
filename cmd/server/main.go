@@ -10,8 +10,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/ksick/gcp-api-mock/internal/config"
-	"github.com/ksick/gcp-api-mock/internal/server"
+	"github.com/katharinasick/gcp-api-mock/internal/config"
+	"github.com/katharinasick/gcp-api-mock/internal/server"
 )
 
 func main() {

@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/ksick/gcp-api-mock/internal/config"
-	"github.com/ksick/gcp-api-mock/internal/handler"
-	"github.com/ksick/gcp-api-mock/internal/middleware"
-	"github.com/ksick/gcp-api-mock/internal/store"
+	"github.com/katharinasick/gcp-api-mock/internal/config"
+	"github.com/katharinasick/gcp-api-mock/internal/handler"
+	"github.com/katharinasick/gcp-api-mock/internal/middleware"
+	"github.com/katharinasick/gcp-api-mock/internal/store"
 )
 
 // New creates and configures a new HTTP server with all routes and middleware.

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksick/gcp-api-mock/internal/storage"
-	"github.com/ksick/gcp-api-mock/internal/store"
+	"github.com/katharinasick/gcp-api-mock/internal/storage"
+	"github.com/katharinasick/gcp-api-mock/internal/store"
 )
 
 func setupTestStorage() (*Storage, *store.Store) {

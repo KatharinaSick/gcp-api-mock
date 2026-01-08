@@ -8,7 +8,7 @@ Guidelines for contributing to GCP API Mock.
 
 ```bash
 # Clone the repository
-git clone https://github.com/ksick/gcp-api-mock.git
+git clone https://github.com/katharinasick/gcp-api-mock.git
 cd gcp-api-mock
 
 # Download dependencies

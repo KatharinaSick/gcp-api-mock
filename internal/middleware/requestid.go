@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/ksick/gcp-api-mock/internal/requestid"
+	"github.com/katharinasick/gcp-api-mock/internal/requestid"
 )
 
 // RequestID adds a unique request ID to each request.

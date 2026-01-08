@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ksick/gcp-api-mock/internal/sqladmin"
-	"github.com/ksick/gcp-api-mock/internal/store"
+	"github.com/katharinasick/gcp-api-mock/internal/sqladmin"
+	"github.com/katharinasick/gcp-api-mock/internal/store"
 )
 
 func setupTestSQLAdmin() (*SQLAdmin, *store.Store) {
