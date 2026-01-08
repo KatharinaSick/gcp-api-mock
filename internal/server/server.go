@@ -35,11 +35,12 @@ func New(cfg *config.Config) *http.Server {
 }
 
 // newRouter creates and configures the HTTP router with all application routes.
-func newRouter(cfg *config.Config, _ *store.Store) *http.ServeMux {
+func newRouter(cfg *config.Config, dataStore *store.Store) *http.ServeMux {
 	mux := http.NewServeMux()
 
 	// Create handlers
 	healthHandler := handler.NewHealth()
+	storageHandler := handler.NewStorage(dataStore)
 
 	// Health check routes
 	mux.HandleFunc("GET /health", healthHandler.Check)
@@ -52,11 +53,25 @@ func newRouter(cfg *config.Config, _ *store.Store) *http.ServeMux {
 	uiHandler := handler.NewUI(cfg)
 	mux.HandleFunc("GET /", uiHandler.Index)
 
-	// Future API routes will be registered here
-	// Example pattern:
-	// storageHandler := handler.NewStorage(dataStore)
-	// mux.HandleFunc("GET /v1/b", storageHandler.ListBuckets)
-	// mux.HandleFunc("POST /v1/b", storageHandler.CreateBucket)
+	// Cloud Storage API routes
+	// Bucket operations
+	mux.HandleFunc("GET /storage/v1/b", storageHandler.ListBuckets)
+	mux.HandleFunc("POST /storage/v1/b", storageHandler.CreateBucket)
+	mux.HandleFunc("GET /storage/v1/b/{bucket}", storageHandler.GetBucket)
+	mux.HandleFunc("PUT /storage/v1/b/{bucket}", storageHandler.UpdateBucket)
+	mux.HandleFunc("DELETE /storage/v1/b/{bucket}", storageHandler.DeleteBucket)
+
+	// Object operations
+	mux.HandleFunc("GET /storage/v1/b/{bucket}/o", storageHandler.ListObjects)
+	mux.HandleFunc("GET /storage/v1/b/{bucket}/o/{object...}", storageHandler.GetObject)
+	mux.HandleFunc("PUT /storage/v1/b/{bucket}/o/{object...}", storageHandler.UpdateObject)
+	mux.HandleFunc("DELETE /storage/v1/b/{bucket}/o/{object...}", storageHandler.DeleteObject)
+
+	// Object upload (uses different path prefix)
+	mux.HandleFunc("POST /upload/storage/v1/b/{bucket}/o", storageHandler.InsertObject)
+
+	// Object download (alternative download endpoint)
+	mux.HandleFunc("GET /download/storage/v1/b/{bucket}/o/{object...}", storageHandler.DownloadObject)
 
 	return mux
 }
