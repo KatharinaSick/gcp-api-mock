@@ -39,11 +39,11 @@ The server starts on `http://localhost:8080` by default.
 
 Configuration is done via environment variables:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `GCP_MOCK_HOST` | `0.0.0.0` | Server host address |
-| `GCP_MOCK_PORT` | `8080` | Server port |
-| `GCP_MOCK_ENV` | `development` | Environment (development/production) |
+| Variable        | Default       | Description                          |
+|-----------------|---------------|--------------------------------------|
+| `GCP_MOCK_HOST` | `0.0.0.0`     | Server host address                  |
+| `GCP_MOCK_PORT` | `8080`        | Server port                          |
+| `GCP_MOCK_ENV`  | `development` | Environment (development/production) |
 
 ## API Endpoints
 
