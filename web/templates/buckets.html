@@ -1,0 +1,34 @@
+{{if gt (len .) 0}}
+<table class="gcp-mock-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Location</th>
+            <th>Storage Class</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .}}
+        <tr>
+            <td>{{.Name}}</td>
+            <td>{{.Location}}</td>
+            <td>{{.StorageClass}}</td>
+            <td>{{.TimeCreated.Format "2006-01-02 15:04"}}</td>
+            <td class="gcp-mock-table-actions">
+                <button class="gcp-mock-btn gcp-mock-btn-sm gcp-mock-btn-danger"
+                        onclick="gcpMockConfirmDelete('Bucket', '{{.Name}}', '/ui/buckets/{{.Name}}', '#gcp-mock-bucket-list')">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<div class="gcp-mock-table-empty">
+    No buckets found. Create one to get started.
+</div>
+{{end}}
+
