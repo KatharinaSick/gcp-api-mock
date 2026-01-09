@@ -362,6 +362,57 @@ func TestStorage_InsertObject_MissingName(t *testing.T) {
 	}
 }
 
+func TestStorage_InsertObject_MultipartRelated(t *testing.T) {
+	h, s := setupTestStorage()
+	_, _ = s.CreateBucket(&storage.BucketInsertRequest{Name: "test-bucket"})
+
+	// Create a multipart/related body like Terraform sends
+	boundary := "boundary123"
+	body := "--" + boundary + "\r\n" +
+		"Content-Type: application/json\r\n\r\n" +
+		`{"contentType":"application/json","metadata":{"key":"value"}}` + "\r\n" +
+		"--" + boundary + "\r\n" +
+		"Content-Type: application/json\r\n\r\n" +
+		`{"version":4,"terraform_version":"1.11.0"}` + "\r\n" +
+		"--" + boundary + "--\r\n"
+
+	req := httptest.NewRequest(http.MethodPost, "/upload/storage/v1/b/test-bucket/o?name=state.tfstate", strings.NewReader(body))
+	req.Header.Set("Content-Type", "multipart/related; boundary="+boundary)
+	rr := httptest.NewRecorder()
+
+	h.InsertObject(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d, got %d: %s", http.StatusOK, rr.Code, rr.Body.String())
+	}
+
+	var obj storage.Object
+	if err := json.NewDecoder(rr.Body).Decode(&obj); err != nil {
+		t.Fatalf("failed to decode response: %v", err)
+	}
+
+	if obj.Name != "state.tfstate" {
+		t.Errorf("expected name 'state.tfstate', got '%s'", obj.Name)
+	}
+
+	// Content type should be from the metadata JSON, not the outer multipart header
+	if obj.ContentType != "application/json" {
+		t.Errorf("expected content type 'application/json', got '%s'", obj.ContentType)
+	}
+
+	// Verify metadata was parsed
+	if obj.Metadata["key"] != "value" {
+		t.Errorf("expected metadata key='value', got '%s'", obj.Metadata["key"])
+	}
+
+	// Verify content was stored correctly
+	content := s.GetObjectContent("test-bucket", "state.tfstate")
+	expectedContent := `{"version":4,"terraform_version":"1.11.0"}`
+	if string(content) != expectedContent {
+		t.Errorf("expected content '%s', got '%s'", expectedContent, string(content))
+	}
+}
+
 func TestStorage_GetObject(t *testing.T) {
 	h, s := setupTestStorage()
 	_, _ = s.CreateBucket(&storage.BucketInsertRequest{Name: "test-bucket"})
