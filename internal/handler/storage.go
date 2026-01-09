@@ -3,7 +3,10 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"strings"
@@ -172,6 +175,7 @@ func (h *Storage) ListObjects(w http.ResponseWriter, r *http.Request) {
 
 // InsertObject handles POST /upload/storage/v1/b/{bucket}/o - Upload an object.
 // Reference: https://cloud.google.com/storage/docs/json_api/v1/objects/insert
+// Supports both simple uploads and multipart/related uploads (used by Terraform).
 func (h *Storage) InsertObject(w http.ResponseWriter, r *http.Request) {
 	// Extract bucket name from path like /upload/storage/v1/b/{bucket}/o
 	path := r.URL.Path
@@ -201,28 +205,42 @@ func (h *Storage) InsertObject(w http.ResponseWriter, r *http.Request) {
 		objectName = decodedName
 	}
 
-	// Read content
-	content, err := io.ReadAll(r.Body)
-	if err != nil {
-		respondError(w, http.StatusBadRequest, "Failed to read request body", "invalid")
-		return
-	}
-
-	// Get content type from header
-	contentType := r.Header.Get("Content-Type")
-	if contentType == "" {
-		contentType = "application/octet-stream"
-	}
-
-	// Get metadata from query parameters (x-goog-meta-*)
+	var content []byte
+	var contentType string
 	var metadata map[string]string
-	for key, values := range r.URL.Query() {
-		if strings.HasPrefix(key, "x-goog-meta-") && len(values) > 0 {
-			if metadata == nil {
-				metadata = make(map[string]string)
+
+	// Check if this is a multipart/related upload (used by Terraform and other clients)
+	reqContentType := r.Header.Get("Content-Type")
+	if strings.HasPrefix(reqContentType, "multipart/related") {
+		// Parse multipart/related request
+		content, contentType, metadata, err = parseMultipartRelatedUpload(r)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Failed to parse multipart request: "+err.Error(), "invalid")
+			return
+		}
+	} else {
+		// Simple upload - read content directly
+		content, err = io.ReadAll(r.Body)
+		if err != nil {
+			respondError(w, http.StatusBadRequest, "Failed to read request body", "invalid")
+			return
+		}
+
+		// Get content type from header
+		contentType = reqContentType
+		if contentType == "" {
+			contentType = "application/octet-stream"
+		}
+
+		// Get metadata from query parameters (x-goog-meta-*)
+		for key, values := range r.URL.Query() {
+			if strings.HasPrefix(key, "x-goog-meta-") && len(values) > 0 {
+				if metadata == nil {
+					metadata = make(map[string]string)
+				}
+				metaKey := strings.TrimPrefix(key, "x-goog-meta-")
+				metadata[metaKey] = values[0]
 			}
-			metaKey := strings.TrimPrefix(key, "x-goog-meta-")
-			metadata[metaKey] = values[0]
 		}
 	}
 
@@ -436,4 +454,74 @@ func extractBucketAndObjectNames(path string) (string, string) {
 		return "", ""
 	}
 	return parts[0], parts[1]
+}
+
+// parseMultipartRelatedUpload parses a multipart/related upload request.
+// This format is used by Terraform and other GCS clients.
+// The first part contains JSON metadata, the second part contains the actual content.
+func parseMultipartRelatedUpload(r *http.Request) (content []byte, contentType string, metadata map[string]string, err error) {
+	// Parse the Content-Type header to get the boundary
+	mediaType, params, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to parse Content-Type: %w", err)
+	}
+
+	if !strings.HasPrefix(mediaType, "multipart/") {
+		return nil, "", nil, fmt.Errorf("expected multipart content type, got %s", mediaType)
+	}
+
+	boundary := params["boundary"]
+	if boundary == "" {
+		return nil, "", nil, fmt.Errorf("no boundary found in Content-Type")
+	}
+
+	// Create multipart reader
+	mr := multipart.NewReader(r.Body, boundary)
+
+	// First part should be JSON metadata
+	metadataPart, err := mr.NextPart()
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to read metadata part: %w", err)
+	}
+
+	// Parse JSON metadata
+	var objMetadata struct {
+		ContentType string            `json:"contentType"`
+		Metadata    map[string]string `json:"metadata"`
+	}
+
+	metadataBytes, err := io.ReadAll(metadataPart)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to read metadata: %w", err)
+	}
+
+	if err := json.Unmarshal(metadataBytes, &objMetadata); err != nil {
+		return nil, "", nil, fmt.Errorf("failed to parse metadata JSON: %w", err)
+	}
+
+	contentType = objMetadata.ContentType
+	metadata = objMetadata.Metadata
+
+	// Second part should be the actual content
+	contentPart, err := mr.NextPart()
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to read content part: %w", err)
+	}
+
+	// If content type wasn't in metadata, try to get it from the part header
+	if contentType == "" {
+		contentType = contentPart.Header.Get("Content-Type")
+	}
+
+	// Default content type
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+
+	content, err = io.ReadAll(contentPart)
+	if err != nil {
+		return nil, "", nil, fmt.Errorf("failed to read content: %w", err)
+	}
+
+	return content, contentType, metadata, nil
 }
