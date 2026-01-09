@@ -12,7 +12,15 @@
     <tbody>
         {{range .}}
         <tr>
-            <td>{{.Name}}</td>
+            <td>
+                <a href="#" class="gcp-mock-bucket-link"
+                   hx-get="/ui/buckets/{{.Name}}/objects"
+                   hx-target="#gcp-mock-object-list"
+                   hx-swap="innerHTML"
+                   onclick="gcpMockShowObjectPanel('{{.Name}}')">
+                    {{.Name}}
+                </a>
+            </td>
             <td>{{.Location}}</td>
             <td>{{.StorageClass}}</td>
             <td>{{.TimeCreated.Format "2006-01-02 15:04"}}</td>

@@ -80,6 +80,19 @@
                                 <div class="gcp-mock-loading">Loading buckets</div>
                             </div>
                         </div>
+
+                        <!-- Objects Panel (shown when a bucket is selected) -->
+                        <div id="gcp-mock-objects-panel" class="gcp-mock-objects-panel gcp-mock-panel-hidden">
+                            <div class="gcp-mock-panel-header">
+                                <h2 class="gcp-mock-panel-title">// OBJECTS IN <span id="gcp-mock-selected-bucket"></span></h2>
+                                <button class="gcp-mock-btn gcp-mock-btn-sm" onclick="gcpMockHideObjectPanel()">× Close</button>
+                            </div>
+                            <div class="gcp-mock-table-container">
+                                <div id="gcp-mock-object-list">
+                                    <div class="gcp-mock-table-empty">Select a bucket to view its objects.</div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Cloud SQL Tab -->
@@ -246,6 +259,30 @@
             if (confirm('Are you sure you want to delete ' + resourceType + ' "' + resourceName + '"?')) {
                 htmx.ajax('DELETE', deleteUrl, {target: targetId, swap: 'innerHTML'});
                 gcpMockShowToast(resourceType + ' deleted', 'success');
+            }
+        }
+
+        // Show objects panel for a bucket
+        function gcpMockShowObjectPanel(bucketName) {
+            const panel = document.getElementById('gcp-mock-objects-panel');
+            const bucketSpan = document.getElementById('gcp-mock-selected-bucket');
+            if (panel && bucketSpan) {
+                bucketSpan.textContent = bucketName;
+                panel.classList.remove('gcp-mock-panel-hidden');
+                panel.dataset.bucket = bucketName;
+            }
+        }
+
+        // Hide objects panel
+        function gcpMockHideObjectPanel() {
+            const panel = document.getElementById('gcp-mock-objects-panel');
+            if (panel) {
+                panel.classList.add('gcp-mock-panel-hidden');
+                panel.dataset.bucket = '';
+                const objectList = document.getElementById('gcp-mock-object-list');
+                if (objectList) {
+                    objectList.innerHTML = '<div class="gcp-mock-table-empty">Select a bucket to view its objects.</div>';
+                }
             }
         }
     </script>

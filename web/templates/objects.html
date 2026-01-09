@@ -1,0 +1,38 @@
+{{if .Objects}}
+<table class="gcp-mock-table">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Content-Type</th>
+            <th>Size</th>
+            <th>Created</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Objects}}
+        <tr>
+            <td>{{.Name}}</td>
+            <td>{{.ContentType}}</td>
+            <td>{{.Size}} bytes</td>
+            <td>{{.TimeCreated.Format "2006-01-02 15:04"}}</td>
+            <td class="gcp-mock-table-actions">
+                <a href="/download/storage/v1/b/{{.Bucket}}/o/{{.Name}}?alt=media"
+                   class="gcp-mock-btn gcp-mock-btn-sm" download>
+                    Download
+                </a>
+                <button class="gcp-mock-btn gcp-mock-btn-sm gcp-mock-btn-danger"
+                        onclick="gcpMockConfirmDelete('Object', '{{.Name}}', '/ui/buckets/{{.Bucket}}/objects/{{.Name}}', '#gcp-mock-object-list')">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<div class="gcp-mock-table-empty">
+    No objects found in bucket "{{.BucketName}}". Upload objects via the API to see them here.
+</div>
+{{end}}
+

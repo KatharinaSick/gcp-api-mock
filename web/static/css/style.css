@@ -601,3 +601,38 @@ body::before {
     margin-top: var(--gcp-mock-spacing-sm);
 }
 
+/* Bucket link styling */
+.gcp-mock-bucket-link {
+    color: var(--gcp-mock-color-cyan);
+    text-decoration: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.gcp-mock-bucket-link:hover {
+    text-decoration: underline;
+    text-shadow: 0 0 5px var(--gcp-mock-color-cyan);
+}
+
+/* Objects panel */
+.gcp-mock-objects-panel {
+    margin-top: var(--gcp-mock-spacing-lg);
+    padding-top: var(--gcp-mock-spacing-md);
+    border-top: 2px solid var(--gcp-mock-color-border-bright);
+    animation: gcp-mock-slide-in 0.3s ease-out;
+}
+
+.gcp-mock-panel-hidden {
+    display: none;
+}
+
+@keyframes gcp-mock-slide-in {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
