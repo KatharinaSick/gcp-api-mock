@@ -33,6 +33,94 @@ type Bucket struct {
 	Etag string `json:"etag"`
 	// Labels are user-provided labels, in key/value pairs.
 	Labels map[string]string `json:"labels,omitempty"`
+	// IamConfiguration is the bucket's IAM configuration.
+	IamConfiguration *IamConfiguration `json:"iamConfiguration,omitempty"`
+	// Versioning is the bucket's versioning configuration.
+	Versioning *Versioning `json:"versioning,omitempty"`
+	// Lifecycle is the bucket's lifecycle configuration.
+	Lifecycle *Lifecycle `json:"lifecycle,omitempty"`
+	// SoftDeletePolicy is the bucket's soft delete policy.
+	SoftDeletePolicy *SoftDeletePolicy `json:"softDeletePolicy,omitempty"`
+}
+
+// IamConfiguration represents the bucket's IAM configuration.
+type IamConfiguration struct {
+	// UniformBucketLevelAccess controls uniform bucket-level access.
+	UniformBucketLevelAccess *UniformBucketLevelAccess `json:"uniformBucketLevelAccess,omitempty"`
+	// PublicAccessPrevention controls public access prevention.
+	PublicAccessPrevention string `json:"publicAccessPrevention,omitempty"`
+}
+
+// UniformBucketLevelAccess controls uniform bucket-level access.
+type UniformBucketLevelAccess struct {
+	// Enabled specifies whether uniform bucket-level access is enabled.
+	Enabled bool `json:"enabled"`
+	// LockedTime specifies the time at which this setting was locked.
+	LockedTime *time.Time `json:"lockedTime,omitempty"`
+}
+
+// Versioning represents the bucket's versioning configuration.
+type Versioning struct {
+	// Enabled specifies whether versioning is enabled.
+	Enabled bool `json:"enabled"`
+}
+
+// Lifecycle represents the bucket's lifecycle configuration.
+type Lifecycle struct {
+	// Rule is a list of lifecycle rules.
+	Rule []LifecycleRule `json:"rule,omitempty"`
+}
+
+// LifecycleRule represents a lifecycle rule.
+type LifecycleRule struct {
+	// Action is the action to take when the rule's conditions are met.
+	Action *LifecycleAction `json:"action,omitempty"`
+	// Condition is the condition(s) under which the action will be taken.
+	Condition *LifecycleCondition `json:"condition,omitempty"`
+}
+
+// LifecycleAction represents the action to take.
+type LifecycleAction struct {
+	// Type is the type of action (e.g., "Delete", "SetStorageClass").
+	Type string `json:"type"`
+	// StorageClass is the target storage class (for SetStorageClass action).
+	StorageClass string `json:"storageClass,omitempty"`
+}
+
+// LifecycleCondition represents the condition for a lifecycle rule.
+type LifecycleCondition struct {
+	// Age is the age of the object in days.
+	Age *int `json:"age,omitempty"`
+	// CreatedBefore is the date before which the object was created.
+	CreatedBefore string `json:"createdBefore,omitempty"`
+	// IsLive indicates whether the object is live or archived.
+	IsLive *bool `json:"isLive,omitempty"`
+	// MatchesStorageClass is a list of storage classes to match.
+	MatchesStorageClass []string `json:"matchesStorageClass,omitempty"`
+	// NumNewerVersions is the number of newer versions.
+	NumNewerVersions *int `json:"numNewerVersions,omitempty"`
+	// WithState specifies the state of the object (e.g., "LIVE", "ARCHIVED", "ANY").
+	WithState string `json:"withState,omitempty"`
+	// MatchesPrefix is a list of object name prefixes to match.
+	MatchesPrefix []string `json:"matchesPrefix,omitempty"`
+	// MatchesSuffix is a list of object name suffixes to match.
+	MatchesSuffix []string `json:"matchesSuffix,omitempty"`
+	// DaysSinceCustomTime is the number of days since the custom time.
+	DaysSinceCustomTime *int `json:"daysSinceCustomTime,omitempty"`
+	// DaysSinceNoncurrentTime is the number of days since the object became noncurrent.
+	DaysSinceNoncurrentTime *int `json:"daysSinceNoncurrentTime,omitempty"`
+	// NoncurrentTimeBefore is the date before which the object became noncurrent.
+	NoncurrentTimeBefore string `json:"noncurrentTimeBefore,omitempty"`
+	// CustomTimeBefore is the date before which the custom time was set.
+	CustomTimeBefore string `json:"customTimeBefore,omitempty"`
+}
+
+// SoftDeletePolicy represents the bucket's soft delete policy.
+type SoftDeletePolicy struct {
+	// RetentionDurationSeconds is the retention duration in seconds.
+	RetentionDurationSeconds int64 `json:"retentionDurationSeconds,omitempty,string"`
+	// EffectiveTime is the time at which this policy became effective.
+	EffectiveTime *time.Time `json:"effectiveTime,omitempty"`
 }
 
 // BucketList represents a list of buckets.
@@ -101,16 +189,24 @@ type ObjectList struct {
 
 // BucketInsertRequest represents the request body for creating a bucket.
 type BucketInsertRequest struct {
-	Name         string            `json:"name"`
-	Location     string            `json:"location,omitempty"`
-	StorageClass string            `json:"storageClass,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	Name             string            `json:"name"`
+	Location         string            `json:"location,omitempty"`
+	StorageClass     string            `json:"storageClass,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	IamConfiguration *IamConfiguration `json:"iamConfiguration,omitempty"`
+	Versioning       *Versioning       `json:"versioning,omitempty"`
+	Lifecycle        *Lifecycle        `json:"lifecycle,omitempty"`
+	SoftDeletePolicy *SoftDeletePolicy `json:"softDeletePolicy,omitempty"`
 }
 
 // BucketUpdateRequest represents the request body for updating a bucket.
 type BucketUpdateRequest struct {
-	StorageClass string            `json:"storageClass,omitempty"`
-	Labels       map[string]string `json:"labels,omitempty"`
+	StorageClass     string            `json:"storageClass,omitempty"`
+	Labels           map[string]string `json:"labels,omitempty"`
+	IamConfiguration *IamConfiguration `json:"iamConfiguration,omitempty"`
+	Versioning       *Versioning       `json:"versioning,omitempty"`
+	Lifecycle        *Lifecycle        `json:"lifecycle,omitempty"`
+	SoftDeletePolicy *SoftDeletePolicy `json:"softDeletePolicy,omitempty"`
 }
 
 // APIError represents an error response from the GCS API.

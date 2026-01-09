@@ -116,19 +116,23 @@ func (s *Store) CreateBucket(req *storage.BucketInsertRequest) (*storage.Bucket,
 	}
 
 	bucket := &storage.Bucket{
-		Kind:           "storage#bucket",
-		ID:             req.Name,
-		SelfLink:       fmt.Sprintf("%s/storage/v1/b/%s", s.baseURL, req.Name),
-		ProjectNumber:  s.projectNumber,
-		Name:           req.Name,
-		TimeCreated:    now,
-		Updated:        now,
-		Metageneration: 1,
-		Location:       location,
-		LocationType:   "region",
-		StorageClass:   storageClass,
-		Etag:           generateEtag(),
-		Labels:         req.Labels,
+		Kind:             "storage#bucket",
+		ID:               req.Name,
+		SelfLink:         fmt.Sprintf("%s/storage/v1/b/%s", s.baseURL, req.Name),
+		ProjectNumber:    s.projectNumber,
+		Name:             req.Name,
+		TimeCreated:      now,
+		Updated:          now,
+		Metageneration:   1,
+		Location:         location,
+		LocationType:     "region",
+		StorageClass:     storageClass,
+		Etag:             generateEtag(),
+		Labels:           req.Labels,
+		IamConfiguration: req.IamConfiguration,
+		Versioning:       req.Versioning,
+		Lifecycle:        req.Lifecycle,
+		SoftDeletePolicy: req.SoftDeletePolicy,
 	}
 
 	s.buckets[req.Name] = bucket
@@ -183,6 +187,22 @@ func (s *Store) UpdateBucket(name string, req *storage.BucketUpdateRequest) (*st
 		bucket.Labels = req.Labels
 	}
 
+	if req.IamConfiguration != nil {
+		bucket.IamConfiguration = req.IamConfiguration
+	}
+
+	if req.Versioning != nil {
+		bucket.Versioning = req.Versioning
+	}
+
+	if req.Lifecycle != nil {
+		bucket.Lifecycle = req.Lifecycle
+	}
+
+	if req.SoftDeletePolicy != nil {
+		bucket.SoftDeletePolicy = req.SoftDeletePolicy
+	}
+
 	bucket.Updated = time.Now().UTC()
 	bucket.Metageneration++
 	bucket.Etag = generateEtag()
@@ -213,6 +233,7 @@ func (s *Store) DeleteBucket(name string) error {
 
 // CreateObject creates a new object in the specified bucket.
 // Returns an error if the bucket doesn't exist.
+// If an object with the same name and content already exists, returns the existing object.
 func (s *Store) CreateObject(bucketName, objectName, contentType string, content []byte, metadata map[string]string) (*storage.Object, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -220,6 +241,18 @@ func (s *Store) CreateObject(bucketName, objectName, contentType string, content
 	bucket, exists := s.buckets[bucketName]
 	if !exists {
 		return nil, fmt.Errorf("bucket %s not found", bucketName)
+	}
+
+	// Check if object already exists with the same content
+	if existingObjData, exists := s.objects[bucketName][objectName]; exists {
+		existingMD5 := existingObjData.Metadata.Md5Hash
+		newMD5 := computeMD5Hash(content)
+
+		// If content is the same, check if metadata is also the same
+		if existingMD5 == newMD5 && metadataEqual(existingObjData.Metadata.Metadata, metadata) {
+			// Content and metadata unchanged, return existing object
+			return existingObjData.Metadata, nil
+		}
 	}
 
 	now := time.Now().UTC()
@@ -431,6 +464,19 @@ func indexOf(s, substr string) int {
 		}
 	}
 	return -1
+}
+
+// metadataEqual compares two metadata maps for equality.
+func metadataEqual(a, b map[string]string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for k, v := range a {
+		if bv, ok := b[k]; !ok || bv != v {
+			return false
+		}
+	}
+	return true
 }
 
 // =============================================================================
