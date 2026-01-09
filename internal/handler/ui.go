@@ -286,3 +286,72 @@ func (u *UI) ClearLogsUI(w http.ResponseWriter, r *http.Request) {
 	u.logger.Clear()
 	u.GetLogsUI(w, r)
 }
+
+// ObjectListData holds the data for the objects template.
+type ObjectListData struct {
+	BucketName string
+	Objects    []*storage.Object
+}
+
+// ListObjectsUI renders the object list partial for HTMX.
+func (u *UI) ListObjectsUI(w http.ResponseWriter, r *http.Request) {
+	// Extract bucket name from path: /ui/buckets/{bucket}/objects
+	path := r.URL.Path
+	path = strings.TrimPrefix(path, "/ui/buckets/")
+	bucketName := strings.TrimSuffix(path, "/objects")
+
+	if bucketName == "" {
+		http.Error(w, "bucket name is required", http.StatusBadRequest)
+		return
+	}
+
+	// Check if bucket exists
+	if u.store.GetBucket(bucketName) == nil {
+		http.Error(w, "bucket not found", http.StatusNotFound)
+		return
+	}
+
+	objects, _ := u.store.ListObjects(bucketName, "", "")
+
+	data := ObjectListData{
+		BucketName: bucketName,
+		Objects:    objects,
+	}
+
+	if err := u.templates.ExecuteTemplate(w, "objects.html", data); err != nil {
+		http.Error(w, "failed to render template", http.StatusInternalServerError)
+	}
+}
+
+// DeleteObjectUI handles object deletion from the UI.
+func (u *UI) DeleteObjectUI(w http.ResponseWriter, r *http.Request) {
+	// Extract bucket and object names from path: /ui/buckets/{bucket}/objects/{object...}
+	path := r.URL.Path
+	path = strings.TrimPrefix(path, "/ui/buckets/")
+	parts := strings.SplitN(path, "/objects/", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		http.Error(w, "bucket and object names are required", http.StatusBadRequest)
+		return
+	}
+
+	bucketName := parts[0]
+	objectName := parts[1]
+
+	err := u.store.DeleteObject(bucketName, objectName)
+	if err != nil {
+		if strings.Contains(err.Error(), "not found") {
+			http.Error(w, err.Error(), http.StatusNotFound)
+			return
+		}
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Log the request
+	u.logger.Add("DELETE", "/storage/v1/b/"+bucketName+"/o/"+objectName, http.StatusNoContent)
+
+	// Return updated object list
+	r.URL.Path = "/ui/buckets/" + bucketName + "/objects"
+	u.ListObjectsUI(w, r)
+}

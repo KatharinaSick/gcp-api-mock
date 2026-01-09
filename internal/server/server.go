@@ -63,6 +63,8 @@ func newRouter(cfg *config.Config, dataStore *store.Store) (*http.ServeMux, *han
 	mux.HandleFunc("GET /ui/buckets", uiHandler.ListBucketsUI)
 	mux.HandleFunc("POST /ui/buckets", uiHandler.CreateBucketUI)
 	mux.HandleFunc("DELETE /ui/buckets/{bucket}", uiHandler.DeleteBucketUI)
+	mux.HandleFunc("GET /ui/buckets/{bucket}/objects", uiHandler.ListObjectsUI)
+	mux.HandleFunc("DELETE /ui/buckets/{bucket}/objects/{object...}", uiHandler.DeleteObjectUI)
 	mux.HandleFunc("GET /ui/sql/instances", uiHandler.ListSQLInstancesUI)
 	mux.HandleFunc("POST /ui/sql/instances", uiHandler.CreateSQLInstanceUI)
 	mux.HandleFunc("DELETE /ui/sql/instances/{instance}", uiHandler.DeleteSQLInstanceUI)
