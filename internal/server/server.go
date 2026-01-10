@@ -56,8 +56,10 @@ func newRouter(cfg *config.Config, dataStore *store.Store) (*http.ServeMux, *han
 	mux.Handle("GET /static/", http.StripPrefix("/static/", http.FileServer(http.Dir("web/static"))))
 
 	// UI routes (HTMX templates)
+	// Note: Using {$} to match ONLY the exact root path, not as a catch-all.
+	// This allows GET /{bucket}/{object...} to work for path-style storage requests.
 	uiHandler := handler.NewUI(cfg, dataStore, requestLogger)
-	mux.HandleFunc("GET /", uiHandler.Index)
+	mux.HandleFunc("GET /{$}", uiHandler.Index)
 
 	// UI API routes for HTMX partials
 	mux.HandleFunc("GET /ui/buckets", uiHandler.ListBucketsUI)
@@ -90,6 +92,12 @@ func newRouter(cfg *config.Config, dataStore *store.Store) (*http.ServeMux, *han
 
 	// Object download (alternative download endpoint)
 	mux.HandleFunc("GET /download/storage/v1/b/{bucket}/o/{object...}", storageHandler.DownloadObject)
+
+	// Path-style object access (used by GCS client library for downloads)
+	// Format: GET /{bucket}/{object}
+	// This must be registered to handle requests like GET /mybucket/myobject
+	// The GCS Go client library uses this format for NewReader() calls
+	mux.HandleFunc("GET /{bucket}/{object...}", storageHandler.PathStyleGetObject)
 
 	// Cloud SQL Admin API routes
 	// Note: Cloud SQL uses v1beta4 API (unlike Storage which uses v1)

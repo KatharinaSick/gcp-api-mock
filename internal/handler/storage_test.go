@@ -451,6 +451,88 @@ func TestStorage_GetObject_NotFound(t *testing.T) {
 	}
 }
 
+// TestStorage_GetObject_NotFound_Consistent verifies that both metadata and content
+// endpoints return consistent 404 errors when an object doesn't exist.
+// This is critical for OpenTofu/Terraform's GCS backend which makes two separate
+// API calls: NewReader() with alt=media and Attrs() without alt=media.
+func TestStorage_GetObject_NotFound_Consistent(t *testing.T) {
+	h, s := setupTestStorage()
+	_, _ = s.CreateBucket(&storage.BucketInsertRequest{Name: "cloudhaven-tfstate"})
+
+	// Test 1: Metadata endpoint (without alt=media) should return 404
+	metaReq := httptest.NewRequest(http.MethodGet, "/storage/v1/b/cloudhaven-tfstate/o/default.tfstate", nil)
+	metaRR := httptest.NewRecorder()
+	h.GetObject(metaRR, metaReq)
+
+	if metaRR.Code != http.StatusNotFound {
+		t.Errorf("metadata endpoint: expected status %d, got %d", http.StatusNotFound, metaRR.Code)
+	}
+
+	var metaErr storage.APIError
+	if err := json.NewDecoder(metaRR.Body).Decode(&metaErr); err != nil {
+		t.Fatalf("metadata endpoint: failed to decode error response: %v", err)
+	}
+
+	if metaErr.Error.Code != 404 {
+		t.Errorf("metadata endpoint: expected error code 404, got %d", metaErr.Error.Code)
+	}
+
+	// Test 2: Media download endpoint (with alt=media) should return same 404
+	mediaReq := httptest.NewRequest(http.MethodGet, "/storage/v1/b/cloudhaven-tfstate/o/default.tfstate?alt=media", nil)
+	mediaRR := httptest.NewRecorder()
+	h.GetObject(mediaRR, mediaReq)
+
+	if mediaRR.Code != http.StatusNotFound {
+		t.Errorf("media endpoint: expected status %d, got %d", http.StatusNotFound, mediaRR.Code)
+	}
+
+	var mediaErr storage.APIError
+	if err := json.NewDecoder(mediaRR.Body).Decode(&mediaErr); err != nil {
+		t.Fatalf("media endpoint: failed to decode error response: %v", err)
+	}
+
+	if mediaErr.Error.Code != 404 {
+		t.Errorf("media endpoint: expected error code 404, got %d", mediaErr.Error.Code)
+	}
+
+	// Both should have the same error message format
+	expectedMsg := "No such object: cloudhaven-tfstate/default.tfstate"
+	if metaErr.Error.Message != expectedMsg {
+		t.Errorf("metadata endpoint: expected message '%s', got '%s'", expectedMsg, metaErr.Error.Message)
+	}
+	if mediaErr.Error.Message != expectedMsg {
+		t.Errorf("media endpoint: expected message '%s', got '%s'", expectedMsg, mediaErr.Error.Message)
+	}
+}
+
+// TestStorage_GetObject_BucketNotFound verifies 404 when bucket doesn't exist
+func TestStorage_GetObject_BucketNotFound(t *testing.T) {
+	h, _ := setupTestStorage()
+
+	req := httptest.NewRequest(http.MethodGet, "/storage/v1/b/non-existent-bucket/o/test.txt", nil)
+	rr := httptest.NewRecorder()
+
+	h.GetObject(rr, req)
+
+	if rr.Code != http.StatusNotFound {
+		t.Errorf("expected status %d, got %d", http.StatusNotFound, rr.Code)
+	}
+
+	var errResp storage.APIError
+	if err := json.NewDecoder(rr.Body).Decode(&errResp); err != nil {
+		t.Fatalf("failed to decode error response: %v", err)
+	}
+
+	if errResp.Error.Code != 404 {
+		t.Errorf("expected error code 404, got %d", errResp.Error.Code)
+	}
+
+	// Should mention bucket not found
+	if !strings.Contains(errResp.Error.Message, "non-existent-bucket") {
+		t.Errorf("expected message to contain bucket name, got '%s'", errResp.Error.Message)
+	}
+}
+
 func TestStorage_GetObject_MediaDownload(t *testing.T) {
 	h, s := setupTestStorage()
 	_, _ = s.CreateBucket(&storage.BucketInsertRequest{Name: "test-bucket"})

@@ -269,6 +269,12 @@ func (h *Storage) GetObject(w http.ResponseWriter, r *http.Request) {
 		objectName = decodedName
 	}
 
+	// Check if bucket exists first
+	if h.store.GetBucket(bucketName) == nil {
+		respondError(w, http.StatusNotFound, fmt.Sprintf("Bucket %s not found", bucketName), "notFound")
+		return
+	}
+
 	// Check if this is a media download request
 	if r.URL.Query().Get("alt") == "media" {
 		h.downloadObject(w, r, bucketName, objectName)
@@ -277,7 +283,8 @@ func (h *Storage) GetObject(w http.ResponseWriter, r *http.Request) {
 
 	obj := h.store.GetObject(bucketName, objectName)
 	if obj == nil {
-		respondError(w, http.StatusNotFound, "Object not found", "notFound")
+		// Return 404 with GCS-compatible error message format
+		respondError(w, http.StatusNotFound, fmt.Sprintf("No such object: %s/%s", bucketName, objectName), "notFound")
 		return
 	}
 
@@ -288,13 +295,14 @@ func (h *Storage) GetObject(w http.ResponseWriter, r *http.Request) {
 func (h *Storage) downloadObject(w http.ResponseWriter, r *http.Request, bucketName, objectName string) {
 	obj := h.store.GetObject(bucketName, objectName)
 	if obj == nil {
-		respondError(w, http.StatusNotFound, "Object not found", "notFound")
+		// Return 404 with GCS-compatible error message format
+		respondError(w, http.StatusNotFound, fmt.Sprintf("No such object: %s/%s", bucketName, objectName), "notFound")
 		return
 	}
 
 	content := h.store.GetObjectContent(bucketName, objectName)
 	if content == nil {
-		respondError(w, http.StatusNotFound, "Object content not found", "notFound")
+		respondError(w, http.StatusNotFound, fmt.Sprintf("No such object: %s/%s", bucketName, objectName), "notFound")
 		return
 	}
 
@@ -324,6 +332,38 @@ func (h *Storage) DownloadObject(w http.ResponseWriter, r *http.Request) {
 	decodedName, err := url.QueryUnescape(objectName)
 	if err == nil {
 		objectName = decodedName
+	}
+
+	h.downloadObject(w, r, bucketName, objectName)
+}
+
+// PathStyleGetObject handles GET /{bucket}/{object} - Path-style object access.
+// This is used by the Google Cloud Storage client library (e.g., in Go, Terraform, OpenTofu)
+// for downloading object content. The path format is simply /{bucket}/{object}.
+// Reference: https://cloud.google.com/storage/docs/request-endpoints#path-style
+func (h *Storage) PathStyleGetObject(w http.ResponseWriter, r *http.Request) {
+	// Extract bucket and object from path like /{bucket}/{object}
+	path := strings.TrimPrefix(r.URL.Path, "/")
+	parts := strings.SplitN(path, "/", 2)
+
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
+		respondError(w, http.StatusBadRequest, "Invalid path: expected /{bucket}/{object}", "invalid")
+		return
+	}
+
+	bucketName := parts[0]
+	objectName := parts[1]
+
+	// URL decode the object name
+	decodedName, err := url.QueryUnescape(objectName)
+	if err == nil {
+		objectName = decodedName
+	}
+
+	// Check if bucket exists first
+	if h.store.GetBucket(bucketName) == nil {
+		respondError(w, http.StatusNotFound, fmt.Sprintf("Bucket %s not found", bucketName), "notFound")
+		return
 	}
 
 	h.downloadObject(w, r, bucketName, objectName)
