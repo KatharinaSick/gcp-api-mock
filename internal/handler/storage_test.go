@@ -470,6 +470,12 @@ func TestStorage_GetObject_MediaDownload(t *testing.T) {
 		t.Errorf("expected Content-Type 'text/plain', got '%s'", rr.Header().Get("Content-Type"))
 	}
 
+	// Verify Content-Length is set correctly as a numeric string
+	expectedLen := "13" // len("Hello, World!") = 13
+	if rr.Header().Get("Content-Length") != expectedLen {
+		t.Errorf("expected Content-Length '%s', got '%s'", expectedLen, rr.Header().Get("Content-Length"))
+	}
+
 	if rr.Body.String() != string(content) {
 		t.Errorf("expected body '%s', got '%s'", string(content), rr.Body.String())
 	}
