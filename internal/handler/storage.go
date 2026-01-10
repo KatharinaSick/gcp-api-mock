@@ -299,7 +299,7 @@ func (h *Storage) downloadObject(w http.ResponseWriter, r *http.Request, bucketN
 	}
 
 	w.Header().Set("Content-Type", obj.ContentType)
-	w.Header().Set("Content-Length", string(rune(len(content))))
+	w.Header().Set("Content-Length", fmt.Sprintf("%d", len(content)))
 	w.Header().Set("ETag", obj.Etag)
 	w.WriteHeader(http.StatusOK)
 	w.Write(content)
