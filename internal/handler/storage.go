@@ -84,8 +84,9 @@ func (h *Storage) GetBucket(w http.ResponseWriter, r *http.Request) {
 	respondJSON(w, http.StatusOK, bucket)
 }
 
-// UpdateBucket handles PUT /storage/v1/b/{bucket} - Update bucket metadata.
+// UpdateBucket handles PUT/PATCH /storage/v1/b/{bucket} - Update bucket metadata.
 // Reference: https://cloud.google.com/storage/docs/json_api/v1/buckets/update
+// Reference: https://cloud.google.com/storage/docs/json_api/v1/buckets/patch
 func (h *Storage) UpdateBucket(w http.ResponseWriter, r *http.Request) {
 	bucketName := extractBucketName(r.URL.Path, "/storage/v1/b/")
 

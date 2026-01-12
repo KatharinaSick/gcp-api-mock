@@ -79,6 +79,7 @@ func newRouter(cfg *config.Config, dataStore *store.Store) (*http.ServeMux, *han
 	mux.HandleFunc("POST /storage/v1/b", storageHandler.CreateBucket)
 	mux.HandleFunc("GET /storage/v1/b/{bucket}", storageHandler.GetBucket)
 	mux.HandleFunc("PUT /storage/v1/b/{bucket}", storageHandler.UpdateBucket)
+	mux.HandleFunc("PATCH /storage/v1/b/{bucket}", storageHandler.UpdateBucket)
 	mux.HandleFunc("DELETE /storage/v1/b/{bucket}", storageHandler.DeleteBucket)
 
 	// Object operations
